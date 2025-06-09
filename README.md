@@ -12,6 +12,7 @@ An intelligent Python script that automatically renames Mac screenshot files by 
 - **Comprehensive Logging**: Detailed logs of all operations, errors, and cost tracking
 - **Safe Operations**: No data loss - files are renamed, not modified
 - **Privacy Focused**: Images are compressed before API transmission
+- **Safety Filter Handling**: Automatically skips screenshots that trigger AI safety responses (e.g., images with children)
 - **Intelligent Naming**: Preserves original filename structure while adding meaningful context
 
 ## Example
@@ -133,6 +134,24 @@ Real-time feedback showing:
 - Implements rate limiting and retry logic
 - Respects OpenAI's usage policies
 - Minimal data transmission through image compression
+
+## Safety & Content Filtering
+
+**AI Safety Filters:**
+- GPT-4 Vision has built-in safety filters that may refuse to analyze certain content
+- Common refusal cases include images with children, sensitive content, or unclear images
+- When AI responds with "I'm sorry, I can't help" or similar refusal messages, the tool automatically skips renaming that file
+
+**Automatic Handling:**
+- Files triggering safety filters are left with original names (no harm done)
+- Processing continues with remaining files
+- Clear logging indicates when files are skipped due to safety filters
+- No manual intervention required
+
+**User Control:**
+- You can manually rename skipped files later if desired
+- The tool never forces processing of content the AI deems inappropriate
+- Original files remain completely unchanged
 
 ## Cost Information
 

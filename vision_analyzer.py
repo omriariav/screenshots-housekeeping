@@ -51,6 +51,17 @@ class VisionAnalyzer:
                 
                 if response:
                     description = self._parse_description(response)
+                    
+                    # Check if description is None (safety refusal)
+                    if description is None:
+                        # Track failed API call for cost calculation (AI refused)
+                        self.cost_calculator.track_request(False)
+                        return AnalysisResult(
+                            success=False,
+                            error_message="AI safety filter refused to analyze image",
+                            retry_count=retry_count
+                        )
+                    
                     # Track successful API call for cost calculation
                     self.cost_calculator.track_request(True, description)
                     return AnalysisResult(
@@ -151,13 +162,40 @@ class VisionAnalyzer:
                 print(f"Response content: {e.response.text}")
             return None
     
-    def _parse_description(self, response: dict) -> str:
+    def _parse_description(self, response: dict) -> Optional[str]:
         """Parse the description from API response."""
         try:
             content = response['choices'][0]['message']['content']
             
             # Clean up the description
             description = content.strip().strip('"').strip("'")
+            
+            # Check for safety refusal responses that indicate the model won't analyze the image
+            refusal_patterns = [
+                "i'm sorry, i can't help",
+                "i can't help with that",
+                "i'm not able to help",
+                "i cannot help",
+                "i'm sorry, but i can't",
+                "i can't assist with",
+                "i'm unable to help",
+                "i cannot assist",
+                "i'm sorry, i cannot",
+                "i can't provide",
+                "i'm not able to provide",
+                "i cannot provide",
+                "i can't analyze",
+                "i cannot analyze",
+                "i'm not able to analyze",
+                "i'm sorry, i can't analyze"
+            ]
+            
+            # Check if response matches refusal patterns
+            description_lower = description.lower()
+            for pattern in refusal_patterns:
+                if pattern in description_lower:
+                    print(f"   🚫 AI refused to analyze image (safety filter): {description[:50]}...")
+                    return None  # Return None to indicate refusal/failure
             
             # Remove common prefixes that might appear
             prefixes_to_remove = [

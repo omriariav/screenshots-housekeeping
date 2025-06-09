@@ -47,6 +47,12 @@ This directory contains comprehensive tests for the screenshot renaming tool.
   - Validates format preservation in renaming
   - Shows grouping analysis across format types
 
+- **`test_safety_refusal_handling.py`** - AI safety filter test
+  - Tests detection of GPT-4 Vision safety refusal responses
+  - Validates proper handling of "I can't help" responses
+  - Ensures screenshots with children/sensitive content are skipped
+  - Tests edge cases and mixed-case refusal patterns
+
 ## Pattern Support Coverage
 
 ### Modern Format (Current macOS)
@@ -80,4 +86,5 @@ This will run all tests in sequence and provide a comprehensive report.
 3. **Grouped Processing** - Multiple files with same timestamp share one AI description
 4. **Format Preservation** - Legacy files keep "Screen Shot" prefix after renaming  
 5. **Cost Optimization** - Significant API cost reduction through grouping
-6. **Error Handling** - Graceful degradation with detailed logging 
+6. **Safety Filter Handling** - Automatically skips files that trigger AI safety responses
+7. **Error Handling** - Graceful degradation with detailed logging 

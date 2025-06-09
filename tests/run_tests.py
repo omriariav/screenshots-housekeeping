@@ -29,7 +29,8 @@ def main():
         "test_grouping.py",
         "test_regex_fix_documentation.py",
         "test_screen_shot_support.py",
-        "test_screen_shot_comprehensive.py"
+        "test_screen_shot_comprehensive.py",
+        "test_safety_refusal_handling.py"
     ]
     
     print("🧪 Running Screenshot Renaming Tool Test Suite")
