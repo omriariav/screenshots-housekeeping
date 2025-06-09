@@ -40,6 +40,9 @@ def test_dependencies():
 
 def test_modules():
     """Test our custom modules."""
+    # Add parent directory to path to import modules
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    
     modules = ['config', 'file_manager', 'vision_analyzer', 'logger', 'screenshot_renamer']
     
     for module in modules:
