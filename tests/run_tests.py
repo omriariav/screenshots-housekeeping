@@ -27,7 +27,8 @@ def main():
         "test_installation.py",
         "test_grouping.py", 
         "test_rename_grouping.py",
-        "test_cost_estimation.py"
+        "test_cost_estimation.py",
+        "test_regex_fix_documentation.py"
     ]
     
     print("Screenshot Renaming Tool - Test Suite")

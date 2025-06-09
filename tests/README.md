@@ -1,82 +1,100 @@
-# Test Suite for Screenshot Renaming Tool
+# Test Documentation
 
-This directory contains tests and utilities for verifying the screenshot renaming tool functionality.
+This directory contains comprehensive tests for the screenshot renaming tool.
 
 ## Test Files
 
-### `test_installation.py`
-**Purpose**: Validates the environment setup and dependencies
-- Checks Python version compatibility
-- Verifies all required packages are installed
-- Tests OpenAI API configuration
-- Validates desktop directory access
+### Core Functionality Tests
 
-**Usage**: `python3 test_installation.py`
+- **`test_installation.py`** - Environment validation test
+  - Verifies Python version compatibility
+  - Checks required dependencies
+  - Validates OpenAI API key configuration
+  - Tests file access permissions
 
-### `test_grouping.py`
-**Purpose**: Tests the screenshot grouping functionality
-- Scans desktop for screenshot files
-- Demonstrates timestamp parsing
-- Shows how files are grouped by timestamp
-- Validates the sorting logic (non-numbered first, then by number)
+- **`test_cost_estimation.py`** - Cost calculation test
+  - Demonstrates cost estimation for batch operations
+  - Shows API call optimization through grouping
+  - Validates cost transparency features
 
-**Usage**: `python3 test_grouping.py`
+### Grouping and Detection Tests
 
-### `test_rename_grouping.py`
-**Purpose**: Demonstrates the grouped renaming functionality
-- Shows how multiple screenshots with the same timestamp share descriptions
-- Simulates the rename output format without actual file operations
-- Validates the new naming convention: `Screenshot TIMESTAMP - DESCRIPTION [NUMBER].png`
+- **`test_grouping.py`** - Screenshot grouping test
+  - Tests timestamp-based grouping functionality
+  - Validates detection of numbered screenshots
+  - Shows cost savings through shared descriptions
 
-**Usage**: `python3 test_rename_grouping.py`
+- **`test_rename_grouping.py`** - End-to-end rename test
+  - Tests complete grouped renaming workflow
+  - Demonstrates actual file operations (dry-run mode)
+  - Validates error handling and logging
 
-### `test_cost_estimation.py`
-**Purpose**: Tests cost calculation and estimation features
-- Demonstrates cost estimation for screenshot processing
-- Shows both individual and grouped cost calculations
-- Validates cost tracking functionality
+### Diagnostic Tests
 
-**Usage**: `python3 test_cost_estimation.py`
+- **`test_regex_fix_documentation.py`** - Regex pattern fix validation
+  - Documents the single-digit hour detection fix
+  - Compares old vs new regex patterns
+  - Demonstrates improved file detection capabilities
 
-### `run_tests.py`
-**Purpose**: Test runner that executes all tests
-- Runs all test files in sequence
-- Provides a summary of pass/fail status
-- Suitable for CI/CD integration
+## Running Tests
 
-**Usage**: `python3 run_tests.py`
-
-## Key Features Tested
-
-### Timestamp Grouping
-The new functionality groups screenshots by their timestamp, so:
-- `Screenshot 2025-01-15 at 14.30.22.png`
-- `Screenshot 2025-01-15 at 14.30.22 (1).png` 
-- `Screenshot 2025-01-15 at 14.30.22 (2).png`
-
-All get the same AI description but maintain their numbering:
-- `Screenshot 2025-01-15 at 14.30.22 - Web browser article.png`
-- `Screenshot 2025-01-15 at 14.30.22 - Web browser article (1).png`
-- `Screenshot 2025-01-15 at 14.30.22 - Web browser article (2).png`
-
-### Cost Optimization
-The grouped processing reduces API costs significantly:
-- **Before**: 3 API calls for 3 screenshots = ~$0.03
-- **After**: 1 API call for 3 screenshots = ~$0.01
-
-### Benefits
-1. **Cost Efficiency**: Fewer API calls for multiple screenshots taken at the same time
-2. **Consistency**: All related screenshots get the same descriptive name
-3. **Preservation**: Original numbering system (1), (2), (3) is maintained
-4. **User Experience**: Logical grouping makes file management easier
-
-## Running the Full Test Suite
-
-To run all tests at once:
-
+### Individual Tests
 ```bash
-cd /path/to/screenshots-housekeeing
+python3 tests/test_installation.py
+python3 tests/test_grouping.py
+python3 tests/test_rename_grouping.py
+python3 tests/test_cost_estimation.py
+python3 tests/test_regex_fix_documentation.py
+```
+
+### All Tests
+```bash
 python3 tests/run_tests.py
 ```
 
-This will execute all tests and provide a comprehensive report of the tool's functionality. 
+## Test Results Expected
+
+### Installation Test
+✅ Python version compatibility
+✅ Required dependencies installed
+✅ API key configured
+✅ File access permissions
+
+### Grouping Test
+- Detects all unprocessed screenshots on desktop
+- Groups by exact timestamp matching
+- Shows cost optimization potential
+
+### Rename Test
+- Processes screenshots in groups
+- Maintains macOS numbering system
+- Applies shared descriptions
+
+### Cost Estimation Test
+- Calculates API costs before processing
+- Shows grouped vs individual processing savings
+- Provides transparent cost breakdown
+
+### Regex Fix Test
+- Validates single-digit hour detection
+- Shows improvement from 2 to 50+ detected files
+- Confirms compatibility with both single and double-digit hours
+
+## Regex Pattern Fix Details
+
+**Issue**: macOS creates screenshots with single-digit hours (e.g., 9.15.24 for 9:15 AM)
+**Problem**: Original regex pattern `\d{2}` required exactly 2 digits for hours
+**Solution**: Updated regex pattern to `\d{1,2}` to accept 1-2 digits for hours
+
+**Impact**: 
+- Before fix: Only screenshots from 10 AM - 12 PM detected
+- After fix: All screenshots (1 AM - 12 PM) detected
+- Files newly detected: `Screenshot 2025-06-09 at 9.15.24.png` and similar
+
+## Safety Features
+
+All tests operate in safe modes:
+- No actual API calls made (unless explicitly testing API)
+- File operations use dry-run mode
+- Comprehensive error handling
+- Detailed logging for troubleshooting 
