@@ -104,6 +104,48 @@ class CostCalculator:
             avg_image_size_mb=avg_image_size_mb
         )
     
+    def estimate_costs_grouped(self, screenshots_by_timestamp: dict) -> CostEstimate:
+        """Estimate costs for processing screenshots grouped by timestamp."""
+        if not screenshots_by_timestamp:
+            return CostEstimate(0, 0.0, 0.0, 0.0, 0.0)
+        
+        # Count unique timestamps (API calls needed) vs total files
+        unique_timestamps = len(screenshots_by_timestamp)
+        total_images = sum(len(group) for group in screenshots_by_timestamp.values())
+        
+        # Calculate average image size from representative files
+        total_size_mb = 0.0
+        valid_images = 0
+        sample_paths = []
+        
+        for group in list(screenshots_by_timestamp.values())[:5]:  # Sample from first 5 groups
+            if group:
+                sample_paths.append(group[0].path)  # Use representative file from each group
+        
+        for path in sample_paths:
+            try:
+                size_mb = path.stat().st_size / (1024 * 1024)
+                total_size_mb += size_mb
+                valid_images += 1
+            except Exception:
+                continue
+        
+        avg_image_size_mb = total_size_mb / valid_images if valid_images > 0 else 1.0
+        
+        # Estimate costs based on unique API calls (one per timestamp group)
+        estimated_image_cost = unique_timestamps * self.COST_PER_IMAGE_BASE
+        estimated_tokens = unique_timestamps * self.AVERAGE_TOKENS_PER_RESPONSE
+        estimated_token_cost = (estimated_tokens / 1000) * self.COST_PER_1K_OUTPUT_TOKENS
+        total_estimated_cost = estimated_image_cost + estimated_token_cost
+        
+        return CostEstimate(
+            total_images=unique_timestamps,  # Show API calls, not total files
+            estimated_image_cost=estimated_image_cost,
+            estimated_token_cost=estimated_token_cost,
+            total_estimated_cost=total_estimated_cost,
+            avg_image_size_mb=avg_image_size_mb
+        )
+    
     def track_request(self, success: bool, response_text: str = ""):
         """Track an API request for cost calculation."""
         # Estimate tokens in response (rough approximation)

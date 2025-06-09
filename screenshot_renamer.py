@@ -71,12 +71,13 @@ class ScreenshotRenamer:
             
             self.logger.log_scan_results(len(screenshots))
             
-            # Show cost estimate
-            screenshot_paths = [s.path for s in screenshots]
-            cost_estimate = self.cost_calculator.estimate_costs(screenshot_paths)
+            # Group screenshots and show cost estimate
+            timestamp_groups = self.file_manager.group_screenshots_by_timestamp(screenshots)
+            cost_estimate = self.cost_calculator.estimate_costs_grouped(timestamp_groups)
             self.logger.log_cost_estimate(cost_estimate)
             
-            print(f"Found {len(screenshots)} screenshot files to process\n")
+            print(f"Found {len(screenshots)} screenshot files in {len(timestamp_groups)} timestamp groups")
+            print(f"Will make {len(timestamp_groups)} API calls instead of {len(screenshots)}\n")
             
             # Process screenshots in batches
             self._process_screenshots_batch(screenshots)
@@ -111,29 +112,59 @@ class ScreenshotRenamer:
             return summary
     
     def _process_screenshots_batch(self, screenshots: List[ScreenshotFile]):
-        """Process screenshots in batches for better performance and API management."""
-        total_files = len(screenshots)
-        batch_size = self.config.batch_size
+        """Process screenshots in batches, grouping by timestamp to share descriptions."""
+        # Group screenshots by timestamp
+        timestamp_groups = self.file_manager.group_screenshots_by_timestamp(screenshots)
         
-        for i in range(0, total_files, batch_size):
-            batch = screenshots[i:i + batch_size]
-            batch_num = (i // batch_size) + 1
-            total_batches = (total_files + batch_size - 1) // batch_size
+        total_groups = len(timestamp_groups)
+        total_files = len(screenshots)
+        processed_files = 0
+        
+        print(f"Found {total_groups} timestamp groups for {total_files} files")
+        
+        for group_num, (timestamp, group_screenshots) in enumerate(timestamp_groups.items(), 1):
+            print(f"\nProcessing group {group_num}/{total_groups}: {timestamp} ({len(group_screenshots)} files)")
             
-            print(f"Processing batch {batch_num}/{total_batches}")
+            # Process the first screenshot in the group to get the description
+            representative_screenshot = group_screenshots[0]
             
-            for j, screenshot in enumerate(batch):
-                current_file = i + j + 1
+            try:
+                # Validate file access for representative screenshot
+                if not self.file_manager.validate_file_access(representative_screenshot.path):
+                    self.logger.log_error(f"Cannot access representative file: {representative_screenshot.original_name}")
+                    processed_files += len(group_screenshots)
+                    continue
                 
-                # Log progress
-                if current_file % 5 == 0 or current_file == total_files:
-                    self.logger.log_progress(current_file, total_files)
+                # Analyze the representative screenshot
+                self.logger.log_analysis_start(representative_screenshot.original_name)
+                analysis_result = self.vision_analyzer.analyze_screenshot(representative_screenshot.path)
+                self.logger.log_analysis_result(representative_screenshot.original_name, analysis_result)
                 
-                # Process individual screenshot
-                self._process_single_screenshot(screenshot)
+                # If analysis failed, skip this entire group
+                if not analysis_result.success:
+                    self.logger.log_error(f"Analysis failed for group {timestamp}, skipping all {len(group_screenshots)} files")
+                    processed_files += len(group_screenshots)
+                    continue
+                
+                # Apply the same description to all screenshots in the group
+                print(f"   Using description: '{analysis_result.description}' for all {len(group_screenshots)} files")
+                rename_results = self.file_manager.rename_screenshot_group(group_screenshots, analysis_result.description)
+                
+                # Log rename results
+                for rename_result in rename_results:
+                    self.logger.log_rename_result(rename_result)
+                    processed_files += 1
+                    
+                    # Log progress
+                    if processed_files % 5 == 0 or processed_files == total_files:
+                        self.logger.log_progress(processed_files, total_files)
+                
+            except Exception as e:
+                self.logger.log_error(f"Error processing group {timestamp}: {e}")
+                processed_files += len(group_screenshots)
             
-            # Small delay between batches to be respectful of API rate limits
-            if i + batch_size < total_files:
+            # Small delay between groups to be respectful of API rate limits
+            if group_num < total_groups:
                 time.sleep(1)
     
     def _process_single_screenshot(self, screenshot: ScreenshotFile):
@@ -177,11 +208,12 @@ class ScreenshotRenamer:
         if len(screenshots) > 5:
             print(f"  ... and {len(screenshots) - 5} more files")
         
-        # Show cost estimate
-        screenshot_paths = [s.path for s in screenshots]
-        cost_estimate = self.cost_calculator.estimate_costs(screenshot_paths)
+        # Show cost estimate with grouping
+        timestamp_groups = self.file_manager.group_screenshots_by_timestamp(screenshots)
+        cost_estimate = self.cost_calculator.estimate_costs_grouped(timestamp_groups)
         print(f"\n💰 Estimated cost: ${cost_estimate.total_estimated_cost:.4f}")
-        print(f"   • ~{cost_estimate.total_images} API calls × ${cost_estimate.total_estimated_cost/cost_estimate.total_images:.4f} each")
+        print(f"   • {len(timestamp_groups)} API calls (grouped by timestamp) × ${cost_estimate.total_estimated_cost/cost_estimate.total_images:.4f} each")
+        print(f"   • Processing {len(screenshots)} files but only analyzing {len(timestamp_groups)} unique timestamps")
         
         # Ask for confirmation
         response = input(f"\nProceed with renaming {len(screenshots)} files? (y/N): ")
