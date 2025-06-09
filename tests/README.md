@@ -25,76 +25,59 @@ This directory contains comprehensive tests for the screenshot renaming tool.
   - Shows cost savings through shared descriptions
 
 - **`test_rename_grouping.py`** - End-to-end rename test
-  - Tests complete grouped renaming workflow
-  - Demonstrates actual file operations (dry-run mode)
-  - Validates error handling and logging
+  - Tests the complete rename workflow
+  - Validates grouped renaming with shared descriptions
+  - Demonstrates cost optimization in practice
 
-### Diagnostic Tests
+### Pattern Detection and Compatibility Tests
 
-- **`test_regex_fix_documentation.py`** - Regex pattern fix validation
-  - Documents the single-digit hour detection fix
-  - Compares old vs new regex patterns
-  - Demonstrates improved file detection capabilities
+- **`test_regex_fix_documentation.py`** - Single-digit hour fix test
+  - Documents the regex pattern fix for single-digit hours
+  - Shows before/after pattern matching improvements
+  - Validates detection of `9.15.24` vs `14.30.22` formats
 
-## Running Tests
+- **`test_screen_shot_support.py`** - Legacy format pattern test
+  - Tests regex patterns for both "Screenshot" and "Screen Shot" formats
+  - Validates comprehensive pattern matching
+  - Shows support for older macOS screenshot naming
 
-### Individual Tests
-```bash
-python3 tests/test_installation.py
-python3 tests/test_grouping.py
-python3 tests/test_rename_grouping.py
-python3 tests/test_cost_estimation.py
-python3 tests/test_regex_fix_documentation.py
+- **`test_screen_shot_comprehensive.py`** - Real-world detection test
+  - Uses actual FileManager to scan desktop files
+  - Tests detection of both modern and legacy formats
+  - Validates format preservation in renaming
+  - Shows grouping analysis across format types
+
+## Pattern Support Coverage
+
+### Modern Format (Current macOS)
+```
+Screenshot 2025-01-15 at 14.30.22.png
+Screenshot 2025-01-15 at 9.15.24.png       # Single-digit hour
+Screenshot 2025-01-15 at 14.30.22 (1).png  # Numbered
 ```
 
-### All Tests
+### Legacy Format (Older macOS)
+```
+Screen Shot 2022-05-21 at 21.21.27.png
+Screen Shot 2022-05-21 at 9.15.24.png      # Single-digit hour  
+Screen Shot 2022-05-21 at 21.21.27 (1).png # Numbered
+```
+
+## Test Runner
+
+Use `run_tests.py` to execute the complete test suite:
+
 ```bash
 python3 tests/run_tests.py
 ```
 
-## Test Results Expected
+This will run all tests in sequence and provide a comprehensive report.
 
-### Installation Test
-✅ Python version compatibility
-✅ Required dependencies installed
-✅ API key configured
-✅ File access permissions
+## Key Features Validated
 
-### Grouping Test
-- Detects all unprocessed screenshots on desktop
-- Groups by exact timestamp matching
-- Shows cost optimization potential
-
-### Rename Test
-- Processes screenshots in groups
-- Maintains macOS numbering system
-- Applies shared descriptions
-
-### Cost Estimation Test
-- Calculates API costs before processing
-- Shows grouped vs individual processing savings
-- Provides transparent cost breakdown
-
-### Regex Fix Test
-- Validates single-digit hour detection
-- Shows improvement from 2 to 50+ detected files
-- Confirms compatibility with both single and double-digit hours
-
-## Regex Pattern Fix Details
-
-**Issue**: macOS creates screenshots with single-digit hours (e.g., 9.15.24 for 9:15 AM)
-**Problem**: Original regex pattern `\d{2}` required exactly 2 digits for hours
-**Solution**: Updated regex pattern to `\d{1,2}` to accept 1-2 digits for hours
-
-**Impact**: 
-- Before fix: Only screenshots from 10 AM - 12 PM detected
-- After fix: All screenshots (1 AM - 12 PM) detected
-- Files newly detected: `Screenshot 2025-06-09 at 9.15.24.png` and similar
-
-## Safety Features
-
-All tests operate in safe modes:
-- No actual API calls made (unless explicitly testing API)
-- File operations use dry-run mode
-- Comprehensive error handling
-- Detailed logging for troubleshooting 
+1. **Comprehensive Format Support** - Both "Screenshot" and "Screen Shot" patterns
+2. **Single-digit Hour Detection** - Fixed regex patterns for `9.15.24` format
+3. **Grouped Processing** - Multiple files with same timestamp share one AI description
+4. **Format Preservation** - Legacy files keep "Screen Shot" prefix after renaming  
+5. **Cost Optimization** - Significant API cost reduction through grouping
+6. **Error Handling** - Graceful degradation with detailed logging 

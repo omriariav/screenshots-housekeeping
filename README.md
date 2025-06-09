@@ -19,6 +19,12 @@ An intelligent Python script that automatically renames Mac screenshot files by 
 **Before**: `Screenshot 2025-01-15 at 14.30.22.png`  
 **After**: `Screenshot 2025-01-15 at 14.30.22 - Web browser article reading.png`
 
+### Real Results
+
+![Screenshot of renamed files](screenshot.png)
+
+*Example of processed screenshots showing AI-generated descriptions for various content types including marketing analysis, privacy policies, project management, and more.*
+
 ## Requirements
 
 - macOS (tested on Ventura+)

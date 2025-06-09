@@ -12,7 +12,9 @@ def run_test(test_file: str) -> bool:
     print(f"{'='*50}")
     
     try:
-        result = subprocess.run([sys.executable, test_file], 
+        # Run the test file from the tests directory
+        test_path = Path(__file__).parent / test_file
+        result = subprocess.run([sys.executable, str(test_path)], 
                               capture_output=False, 
                               cwd=Path(__file__).parent.parent)
         return result.returncode == 0
@@ -24,45 +26,44 @@ def main():
     """Run all tests in the tests directory."""
     tests_dir = Path(__file__).parent
     test_files = [
-        "test_installation.py",
-        "test_grouping.py", 
-        "test_rename_grouping.py",
-        "test_cost_estimation.py",
-        "test_regex_fix_documentation.py"
+        "test_grouping.py",
+        "test_regex_fix_documentation.py",
+        "test_screen_shot_support.py",
+        "test_screen_shot_comprehensive.py"
     ]
     
-    print("Screenshot Renaming Tool - Test Suite")
-    print("="*50)
+    print("🧪 Running Screenshot Renaming Tool Test Suite")
+    print("=" * 60)
     
-    results = {}
+    passed = 0
+    failed = 0
+    
     for test_file in test_files:
         test_path = tests_dir / test_file
         if test_path.exists():
-            results[test_file] = run_test(str(test_path))
+            if run_test(test_file):
+                passed += 1
+                print(f"✅ {test_file} PASSED")
+            else:
+                failed += 1
+                print(f"❌ {test_file} FAILED")
         else:
-            print(f"Warning: {test_file} not found")
-            results[test_file] = False
+            print(f"⚠️  {test_file} NOT FOUND")
+            failed += 1
     
-    # Summary
-    print(f"\n{'='*50}")
-    print("TEST RESULTS SUMMARY")
-    print(f"{'='*50}")
+    print(f"\n{'='*60}")
+    print(f"📊 Test Results Summary:")
+    print(f"   ✅ Passed: {passed}")
+    print(f"   ❌ Failed: {failed}")
+    print(f"   📈 Success Rate: {passed}/{passed + failed} ({100 * passed // (passed + failed) if passed + failed > 0 else 0}%)")
     
-    passed = sum(results.values())
-    total = len(results)
-    
-    for test_file, passed_test in results.items():
-        status = "✓ PASS" if passed_test else "✗ FAIL"
-        print(f"{status:8} {test_file}")
-    
-    print(f"\nOverall: {passed}/{total} tests passed")
-    
-    if passed == total:
+    if failed == 0:
         print("🎉 All tests passed!")
-        sys.exit(0)
+        return True
     else:
-        print("❌ Some tests failed")
-        sys.exit(1)
+        print("⚠️  Some tests failed!")
+        return False
 
 if __name__ == "__main__":
-    main() 
+    success = main()
+    sys.exit(0 if success else 1) 
