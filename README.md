@@ -194,43 +194,6 @@ For more control, you can create a LaunchAgent that monitors the Desktop folder:
 - Replace `venv-screenshots` with your actual virtual environment name
 - For system Python, use `/usr/bin/python3` instead
 
-### Verification Checklist
-
-✅ **Folder Actions Setup shows**:
-- "Enable Folder Actions" is checked
-- Desktop folder is listed
-- Your workflow is attached and enabled
-
-✅ **Test screenshot**:
-- Take a new screenshot
-- Wait 30 seconds
-- File should be renamed with AI description
-
-✅ **Check logs**:
-- `~/Desktop/screenshot_rename_log.txt` shows recent processing
-- No error messages in the log
-
-✅ **Performance**:
-- Script runs quickly (under 30 seconds per screenshot)
-- No system slowdown or high CPU usage
-
-### Troubleshooting Automation
-
-**Folder Actions not triggering**:
-1. Restart Folder Actions: `sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.fseventsd.plist && sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.fseventsd.plist`
-2. Re-save your Automator workflow
-3. Check Console.app for error messages
-
-**Script errors in automation**:
-1. Test manually: `python3 screenshot_renamer.py --auto`
-2. Check virtual environment path in the script
-3. Verify all file paths are absolute, not relative
-
-**High API costs from automation**:
-- The script only processes new screenshots, not existing ones
-- Each screenshot typically costs $0.01-0.02
-- Check logs for actual usage: `grep "Actual cost" ~/Desktop/screenshot_rename_log.txt`
-
 ## Configuration Options
 
 Edit your `.env` file to customize behavior:
@@ -238,7 +201,7 @@ Edit your `.env` file to customize behavior:
 ```bash
 # API Configuration
 OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-4-vision-preview  # or other vision-capable model
+OPENAI_MODEL=gpt-4o  # or other vision-capable model
 
 # Processing Settings
 DESCRIPTION_LENGTH=5        # Target number of words in description
@@ -259,19 +222,8 @@ Screenshots are renamed with the pattern:
 ```
 Example: `Screenshot 2025-01-15 at 14.30.22 - Code editor Python file.png`
 
-**Benefits of this format:**
-- Preserves chronological sorting by timestamp
-- Maintains clear screenshot identification
-- Easy to distinguish original vs processed files
-- Descriptive context without losing file history
-
 ### Log File
 A detailed log is saved to `~/Desktop/screenshot_rename_log.txt` containing:
-- Processing summary and statistics
-- Cost estimates and actual API usage
-- Individual file operations (analysis, rename)
-- Error details and troubleshooting information
-- Performance metrics and timing data
 
 ### Console Output
 Real-time feedback showing:
@@ -279,37 +231,6 @@ Real-time feedback showing:
 - Processing progress with batch updates
 - Success/failure for each operation
 - Final summary with cost breakdown and statistics
-
-## Privacy & Security
-
-**Data Handling:**
-- Images are resized and compressed before API transmission
-- Only visual content is sent to OpenAI - no metadata or file paths
-- API requests use secure HTTPS connections
-- No data is stored by the application
-
-**API Usage:**
-- Implements rate limiting and retry logic
-- Respects OpenAI's usage policies
-- Minimal data transmission through image compression
-
-## Safety & Content Filtering
-
-**AI Safety Filters:**
-- GPT-4 Vision has built-in safety filters that may refuse to analyze certain content
-- Common refusal cases include images with children, sensitive content, or unclear images
-- When AI responds with "I'm sorry, I can't help" or similar refusal messages, the tool automatically skips renaming that file
-
-**Automatic Handling:**
-- Files triggering safety filters are left with original names (no harm done)
-- Processing continues with remaining files
-- Clear logging indicates when files are skipped due to safety filters
-- No manual intervention required
-
-**User Control:**
-- You can manually rename skipped files later if desired
-- The tool never forces processing of content the AI deems inappropriate
-- Original files remain completely unchanged
 
 ## Cost Information
 
@@ -347,15 +268,6 @@ python3 test_cost_estimation.py
 ```
 Run this to see cost estimation in action with sample data.
 
-## Error Handling
-
-The tool gracefully handles common issues:
-- **API Failures**: Retries with exponential backoff
-- **File Permission Issues**: Skips inaccessible files with logging
-- **Invalid Images**: Continues processing remaining files
-- **Network Timeouts**: Implements robust retry logic
-- **Filename Conflicts**: Adds incremental suffixes
-
 ## Troubleshooting
 
 **"No screenshot files found"**
@@ -391,7 +303,10 @@ The application uses a modular design:
 
 ## Contributing
 
-This tool was developed as a productivity enhancement for macOS users with cluttered screenshot collections. Contributions for additional features, LLM providers, or platform support are welcome.
+This tool was developed as a productivity enhancement for macOS users with cluttered screenshot collections. Contributions for additional features, LLM providers, or platform support are welcome. 
+
+## Contact
+Feel free to reach out by openning an issue or by sending me an email: omri dot ariav at gmail dot com
 
 ## License
 
