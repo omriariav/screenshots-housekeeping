@@ -27,8 +27,8 @@ class FileManager:
     
     def __init__(self, desktop_path: Path):
         self.desktop_path = desktop_path
-        self.screenshot_pattern = re.compile(r'^Screenshot (\d{4}-\d{2}-\d{2} at \d{2}\.\d{2}\.\d{2})\.png$')
-        self.numbered_pattern = re.compile(r'^Screenshot (\d{4}-\d{2}-\d{2} at \d{2}\.\d{2}\.\d{2}) \((\d+)\)\.png$')
+        self.screenshot_pattern = re.compile(r'^Screenshot (\d{4}-\d{2}-\d{2} at \d{1,2}\.\d{1,2}\.\d{2})\.png$')
+        self.numbered_pattern = re.compile(r'^Screenshot (\d{4}-\d{2}-\d{2} at \d{1,2}\.\d{1,2}\.\d{2}) \((\d+)\)\.png$')
     
     def scan_screenshots(self) -> List[ScreenshotFile]:
         """Scan desktop directory for screenshot files."""
