@@ -159,8 +159,8 @@ For more control, you can create a LaunchAgent that monitors the Desktop folder:
        
        <key>ProgramArguments</key>
        <array>
-           <string>/Users/$(whoami)/Code/screenshots-housekeeing/venv-screenshots/bin/python</string>
-           <string>/Users/$(whoami)/Code/screenshots-housekeeing/screenshot_renamer.py</string>
+           <string>/Users/$(whoami)/Code/screenshots-housekeeping/venv-screenshots/bin/python</string>
+           <string>/Users/$(whoami)/Code/screenshots-housekeeping/screenshot_renamer.py</string>
            <string>--auto</string>
        </array>
        
