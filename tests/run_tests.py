@@ -30,7 +30,8 @@ def main():
         "test_regex_fix_documentation.py",
         "test_screen_shot_support.py",
         "test_screen_shot_comprehensive.py",
-        "test_safety_refusal_handling.py"
+        "test_safety_refusal_handling.py",
+        "test_desktop_path_config.py"
     ]
     
     print("🧪 Running Screenshot Renaming Tool Test Suite")

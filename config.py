@@ -32,7 +32,12 @@ class ConfigManager:
     """Manages application configuration and environment setup."""
     
     def __init__(self):
-        self.desktop_path = Path.home() / "Desktop"
+        # Use environment variable if set, otherwise default to home Desktop
+        desktop_path_env = os.getenv("DESKTOP_PATH")
+        if desktop_path_env:
+            self.desktop_path = Path(desktop_path_env)
+        else:
+            self.desktop_path = Path.home() / "Desktop"
         self.log_file_path = self.desktop_path / "screenshot_rename_log.txt"
         
     def get_config(self) -> AppConfig:
