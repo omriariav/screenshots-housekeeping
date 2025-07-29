@@ -87,8 +87,13 @@ class ActionLogger:
                 message += f" (after {result.retry_count} retries)"
         else:
             message = f"Failed to analyze {filename}: {result.error_message}"
+            if result.error_details:
+                message += f"\n    Details: {result.error_details}"
             self.summary.api_failures += 1
-            self.summary.errors.append(f"Analysis failed for {filename}: {result.error_message}")
+            full_error = f"Analysis failed for {filename}: {result.error_message}"
+            if result.error_details:
+                full_error += f" | {result.error_details}"
+            self.summary.errors.append(full_error)
         
         self.session_log.append(f"[ANALYSIS] {message}")
     

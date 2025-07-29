@@ -10,6 +10,7 @@ An intelligent Python script that automatically renames Mac screenshot files by 
 - Shows estimated costs before processing and tracks actual usage
 - Handles multiple screenshots efficiently with rate limiting
 - Automatically skips screenshots that trigger AI safety responses (e.g., images with children)
+- **Enhanced error handling** with detailed diagnostics for API issues, network problems, and configuration errors
 
 ## Example
 
@@ -268,7 +269,75 @@ python3 test_cost_estimation.py
 ```
 Run this to see cost estimation in action with sample data.
 
+## Enhanced Error Handling
+
+The tool provides comprehensive error diagnostics to help quickly identify and resolve issues:
+
+### Connection Testing
+Before processing begins, the tool tests your API connection:
+```
+✅ API connection successful. Model 'gpt-4-vision-preview' is available.
+```
+or
+```
+❌ API connection failed: Authentication failed (401): Invalid or expired API key. 
+Please check your OPENAI_API_KEY in the .env file.
+```
+
+### Detailed Error Messages
+Instead of generic failures, you'll see specific, actionable error details:
+
+**API Authentication Issues:**
+```
+Analysis failed for Screenshot.png: Failed after 3 attempts
+    Details: Authentication failed (401): Invalid or expired API key. 
+    Please check your OPENAI_API_KEY in the .env file. 
+    API response: Incorrect API key provided: sk_****1234
+```
+
+**Network Problems:**
+```
+Analysis failed for Screenshot.png: Failed after 3 attempts
+    Details: Network connection error: Cannot reach OpenAI servers. 
+    Check your internet connection and firewall settings.
+```
+
+**Rate Limiting:**
+```
+Analysis failed for Screenshot.png: Failed after 3 attempts
+    Details: Rate limit exceeded (429): Too many requests. 
+    The script will automatically retry with backoff.
+```
+
+**Quota Issues:**
+```
+Analysis failed for Screenshot.png: Failed after 3 attempts
+    Details: Quota exceeded (429): You've reached your API usage limit. 
+    Check your OpenAI billing and usage limits.
+```
+
+### Error Categories Covered
+- **Authentication**: Invalid/expired API keys, insufficient permissions
+- **Network**: Connection timeouts, DNS issues, SSL problems  
+- **API Limits**: Rate limiting vs quota exceeded (with different guidance)
+- **Server Issues**: OpenAI server errors (500/502/503/504)
+- **Configuration**: Invalid model names, malformed requests
+- **File Processing**: Image corruption, unsupported formats
+- **Response Parsing**: Malformed API responses, unexpected content types
+
+### Retry Logic
+The tool automatically retries failed requests with exponential backoff, tracking each attempt:
+```
+Analysis failed for Screenshot.png: Failed after 3 attempts
+    Details: All attempts failed. Details: API timeout after 30s (attempt 1); 
+    API timeout after 30s (attempt 2); Network connection error (attempt 3)
+```
+
 ## Troubleshooting
+
+> 💡 **Note**: The tool now provides detailed error diagnostics automatically. Check the error messages above for specific guidance before manual troubleshooting.
+
+### Common Issues
 
 **"No screenshot files found"**
 - Ensure screenshots follow standard macOS naming: `Screenshot YYYY-MM-DD at HH.MM.SS.png`
@@ -276,7 +345,7 @@ Run this to see cost estimation in action with sample data.
 
 **"API key not found"**
 - Verify `.env` file exists and contains `OPENAI_API_KEY=your_key`
-- Ensure the API key is valid and has GPT-4 Vision access
+- The tool will now show specific API key validation errors with guidance
 
 **"Permission denied"**
 - Check file permissions on desktop directory
@@ -285,6 +354,13 @@ Run this to see cost estimation in action with sample data.
 **Poor description quality**
 - Adjust `DESCRIPTION_LENGTH` in `.env` for longer/shorter descriptions
 - Screenshots with complex or unclear content may get generic descriptions
+
+### Getting Help
+If you encounter errors not covered by the enhanced diagnostics:
+
+1. **Check the log file**: `~/Desktop/screenshot_rename_log.txt` contains detailed error information
+2. **Test your setup**: Run `python3 screenshot_renamer.py` to see connection test results
+3. **Verify configuration**: The tool will validate your API key and model access on startup
 
 ## Architecture
 
@@ -300,6 +376,8 @@ The application uses a modular design:
 ### Testing & Validation
 - **`test_installation.py`**: Validates environment setup and dependencies
 - **`test_cost_estimation.py`**: Demonstrates cost calculation features
+- **`test_enhanced_error_handling.py`**: Comprehensive test suite for API error scenarios (26 test cases)
+- **`tests/run_tests.py`**: Automated test runner for the complete test suite
 
 ## Contributing
 

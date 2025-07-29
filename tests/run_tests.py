@@ -31,7 +31,8 @@ def main():
         "test_screen_shot_support.py",
         "test_screen_shot_comprehensive.py",
         "test_safety_refusal_handling.py",
-        "test_desktop_path_config.py"
+        "test_desktop_path_config.py",
+        "test_enhanced_error_handling.py"
     ]
     
     print("🧪 Running Screenshot Renaming Tool Test Suite")

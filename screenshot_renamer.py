@@ -43,10 +43,11 @@ class ScreenshotRenamer:
             
             # Test API connection
             print("Testing API connection...")
-            if not self.vision_analyzer.test_connection():
-                print("Warning: Could not verify API connection. Proceeding anyway...")
-            else:
-                print("API connection verified ✓")
+            connection_ok, connection_message = self.vision_analyzer.test_connection()
+            print(connection_message)
+            if not connection_ok:
+                print("Warning: API connection issues detected. The script may fail during processing.")
+                print("Please check your API key and network connection before proceeding.")
             
             return True
             
