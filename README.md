@@ -75,7 +75,7 @@ The macOS Ollama app normally manages the service for you. No OpenAI account or 
 ### Interactive mode
 
 ```bash
-python3 screenshot_renamer.py
+.venv/bin/python screenshot_renamer.py
 ```
 
 The tool checks the chosen provider and configured model, lists screenshots, displays the expected request/cost information, and asks for confirmation before renaming.
@@ -83,7 +83,7 @@ The tool checks the chosen provider and configured model, lists screenshots, dis
 ### Automatic mode
 
 ```bash
-python3 screenshot_renamer.py --auto
+.venv/bin/python screenshot_renamer.py --auto
 ```
 
 This processes matching screenshots without confirmation, which is useful for automation.
@@ -195,7 +195,7 @@ Check that the configured folder is writable and that the screenshot is not open
 Run the test suite with:
 
 ```bash
-python3 tests/run_tests.py
+.venv/bin/python tests/run_tests.py
 ```
 
 Provider tests mock HTTP calls; they do not require an OpenAI key, running Ollama service, or model download.

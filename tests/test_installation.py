@@ -105,7 +105,7 @@ def main():
         print("1. Copy env.example to .env")
         print("2. Choose LLM_PROVIDER=openai and add OPENAI_API_KEY, or choose LLM_PROVIDER=ollama")
         print("3. For Ollama: run 'ollama serve' and pull a vision-capable model (for example, 'ollama pull llama3.2-vision')")
-        print("4. Run: python3 screenshot_renamer.py")
+        print("4. Run: .venv/bin/python screenshot_renamer.py")
     else:
         print("❌ Some tests failed. Please fix the issues above.")
         print("\nTo install missing dependencies:")

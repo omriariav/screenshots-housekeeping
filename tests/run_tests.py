@@ -37,7 +37,8 @@ def main():
         "test_desktop_path_config.py",
         "test_enhanced_error_handling.py",
         "test_provider_cost_tracking.py",
-        "test_ollama_support.py"
+        "test_ollama_support.py",
+        "test_automator_runner.py"
     ]
     
     print("🧪 Running Screenshot Renaming Tool Test Suite")

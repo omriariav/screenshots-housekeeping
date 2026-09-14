@@ -5,7 +5,7 @@ This directory contains tests for screenshot discovery, safe file renaming, conf
 Run the complete suite from the repository root:
 
 ```bash
-python3 tests/run_tests.py
+.venv/bin/python tests/run_tests.py
 ```
 
 Provider tests mock network calls. They do not need an OpenAI API key, a running Ollama service, or a downloaded model.
