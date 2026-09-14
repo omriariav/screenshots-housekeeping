@@ -21,13 +21,15 @@ class TestAutomatorRunner(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             log_file = Path(temp_dir) / "automator.log"
-            with (
-                patch.dict(os.environ, {"TMPDIR": temp_dir}),
-                patch.object(sys, "argv", [str(RUNNER_PATH), str(log_file)]),
-                patch.object(automator_runner.fcntl, "flock") as flock,
-                patch.object(automator_runner.subprocess, "run", return_value=completed) as run,
-            ):
-                result = automator_runner.main()
+            with patch.dict(os.environ, {"TMPDIR": temp_dir}):
+                with patch.object(sys, "argv", [str(RUNNER_PATH), str(log_file)]):
+                    with patch.object(automator_runner.fcntl, "flock") as flock:
+                        with patch.object(
+                            automator_runner.subprocess,
+                            "run",
+                            return_value=completed,
+                        ) as run:
+                            result = automator_runner.main()
 
         self.assertEqual(result, 0)
         flock.assert_called_once()
