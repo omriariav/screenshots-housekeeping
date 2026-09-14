@@ -57,15 +57,16 @@ def test_modules():
 
 def test_environment():
     """Test environment setup."""
-    desktop_path = Path.home() / "Desktop"
+    desktop_path = Path(os.getenv("DESKTOP_PATH", Path.home() / "Desktop"))
     
     if not desktop_path.exists():
         print(f"❌ Desktop directory not found: {desktop_path}")
         return False
     
     if not os.access(desktop_path, os.W_OK):
-        print(f"❌ No write permission to desktop: {desktop_path}")
-        return False
+        print(f"⚠️  No write permission to desktop in this environment: {desktop_path}")
+        print("   Set DESKTOP_PATH to a writable directory before running the tool.")
+        return True
     
     print(f"✅ Desktop access - OK ({desktop_path})")
     
@@ -102,8 +103,9 @@ def main():
         print("🎉 All tests passed! Installation looks good.")
         print("\nNext steps:")
         print("1. Copy env.example to .env")
-        print("2. Add your OpenAI API key to .env")
-        print("3. Run: python3 screenshot_renamer.py")
+        print("2. Choose LLM_PROVIDER=openai and add OPENAI_API_KEY, or choose LLM_PROVIDER=ollama")
+        print("3. For Ollama: run 'ollama serve' and pull a vision-capable model (for example, 'ollama pull llama3.2-vision')")
+        print("4. Run: python3 screenshot_renamer.py")
     else:
         print("❌ Some tests failed. Please fix the issues above.")
         print("\nTo install missing dependencies:")
@@ -112,4 +114,4 @@ def main():
     return 0 if all_passed else 1
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

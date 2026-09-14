@@ -21,6 +21,7 @@ class ProcessingSummary:
     errors: List[str] = field(default_factory=list)
     estimated_cost: float = 0.0
     actual_cost: float = 0.0
+    model_provider: str = "openai"
     
     @property
     def duration(self) -> datetime.timedelta:
@@ -35,10 +36,10 @@ class ProcessingSummary:
 class ActionLogger:
     """Handles logging and reporting of all screenshot processing operations."""
     
-    def __init__(self, log_file_path: Path):
+    def __init__(self, log_file_path: Path, model_provider: str = "openai"):
         self.log_file_path = log_file_path
         self.session_log: List[str] = []
-        self.summary = ProcessingSummary()
+        self.summary = ProcessingSummary(model_provider=model_provider)
         
         # Initialize log file with session header
         self._initialize_session()
@@ -57,21 +58,42 @@ class ActionLogger:
         self.session_log.append(f"[SCAN] {message}")
     
     def log_cost_estimate(self, estimate: CostEstimate):
-        """Log the cost estimate before processing."""
+        """Log the provider request estimate before processing."""
         self.summary.estimated_cost = estimate.total_estimated_cost
-        message = f"Estimated cost: ${estimate.total_estimated_cost:.4f} ({estimate.total_images} images)"
-        print(f"\n💰 {message}")
-        print(f"   • Image processing: ${estimate.estimated_image_cost:.4f}")
-        print(f"   • Token generation: ${estimate.estimated_token_cost:.4f}")
+        self.summary.model_provider = estimate.provider
+        if not estimate.is_local:
+            message = f"Estimated cost: ${estimate.total_estimated_cost:.4f} ({estimate.total_images} images)"
+            print(f"\n💰 {message}")
+            print(f"   • Image processing: ${estimate.estimated_image_cost:.4f}")
+            print(f"   • Token generation: ${estimate.estimated_token_cost:.4f}")
+            print(f"   • Average image size: {estimate.avg_image_size_mb:.2f} MB")
+            self.session_log.append(f"[COST_ESTIMATE] {estimate}")
+            return
+
+        message = f"Ollama model requests planned: {estimate.total_images}"
+        print(f"\n🖥️  {message}")
+        print("   • OpenAI API cost: $0.0000 (Ollama inference)")
         print(f"   • Average image size: {estimate.avg_image_size_mb:.2f} MB")
-        self.session_log.append(f"[COST_ESTIMATE] {estimate}")
+        self.session_log.append(f"[LOCAL_MODEL_ESTIMATE] {estimate}")
     
     def log_actual_costs(self, actual_costs: ActualCosts):
-        """Log the actual costs after processing."""
+        """Log completed provider requests and cost."""
         self.summary.actual_cost = actual_costs.estimated_cost
-        message = f"Actual cost: ${actual_costs.estimated_cost:.4f}"
-        print(f"\n💳 {message}")
-        self.session_log.append(f"[ACTUAL_COSTS] {actual_costs}")
+        self.summary.model_provider = actual_costs.provider
+        if not actual_costs.is_local:
+            message = f"Actual cost: ${actual_costs.estimated_cost:.4f}"
+            print(f"\n💳 {message}")
+            self.session_log.append(f"[ACTUAL_COSTS] {actual_costs}")
+            return
+
+        message = (
+            f"Ollama model requests: {actual_costs.total_requests} "
+            f"({actual_costs.successful_requests} successful, "
+            f"{actual_costs.failed_requests} failed)"
+        )
+        print(f"\n🖥️  {message}")
+        print("   • Billed API cost: $0.0000")
+        self.session_log.append(f"[LOCAL_MODEL_USAGE] {actual_costs}")
     
     def log_analysis_start(self, filename: str):
         """Log the start of image analysis."""
@@ -132,21 +154,25 @@ class ActionLogger:
         """Generate and log the final processing summary."""
         self.summary.end_time = datetime.datetime.now()
         
+        usage_text = (
+            "Ollama Model Usage:\n-------------------\n"
+            "OpenAI API cost: $0.0000\n"
+            "Screenshots were sent to the configured Ollama server."
+            if self.summary.model_provider == "ollama"
+            else f"Cost Information:\n-----------------\nEstimated cost: ${self.summary.estimated_cost:.4f}\nActual cost: ${self.summary.actual_cost:.4f}\nCost per file: ${self.summary.actual_cost/max(self.summary.successful_renames, 1):.4f}"
+        )
+        failure_label = "Model analysis failures" if self.summary.model_provider == "ollama" else "API failures"
         summary_text = f"""
 Processing Summary:
 ------------------
 Total files found: {self.summary.total_files}
 Successful renames: {self.summary.successful_renames}
 Failed renames: {self.summary.failed_renames}
-API failures: {self.summary.api_failures}
+{failure_label}: {self.summary.api_failures}
 Success rate: {self.summary.success_rate:.1f}%
 Duration: {self.summary.duration}
 
-Cost Information:
------------------
-Estimated cost: ${self.summary.estimated_cost:.4f}
-Actual cost: ${self.summary.actual_cost:.4f}
-Cost per file: ${self.summary.actual_cost/max(self.summary.successful_renames, 1):.4f}
+{usage_text}
 
 """
         
@@ -182,4 +208,4 @@ Cost per file: ${self.summary.actual_cost/max(self.summary.successful_renames, 1
             'success_rate': self.summary.success_rate,
             'duration': str(self.summary.duration),
             'errors_count': len(self.summary.errors)
-        } 
+        }

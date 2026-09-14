@@ -11,8 +11,9 @@ load_dotenv()
 
 @dataclass
 class APIConfig:
-    """Configuration for LLM API settings."""
-    api_key: str
+    """Configuration for a supported LLM API provider."""
+    api_key: Optional[str] = None
+    provider: str = "openai"
     base_url: str = "https://api.openai.com/v1"
     model: str = "gpt-4-vision-preview"
     max_tokens: int = 50
@@ -42,15 +43,28 @@ class ConfigManager:
         
     def get_config(self) -> AppConfig:
         """Get complete application configuration."""
-        api_key = self._get_api_key()
-        
-        api_config = APIConfig(
-            api_key=api_key,
-            model=os.getenv("OPENAI_MODEL", "gpt-4-vision-preview"),
-            max_tokens=int(os.getenv("MAX_TOKENS", "50")),
-            timeout=int(os.getenv("API_TIMEOUT", "30")),
-            max_retries=int(os.getenv("MAX_RETRIES", "3"))
-        )
+        provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+        if provider not in {"openai", "ollama"}:
+            raise ValueError("LLM_PROVIDER must be either 'openai' or 'ollama'.")
+
+        if provider == "ollama":
+            api_config = APIConfig(
+                provider=provider,
+                base_url=self._get_ollama_base_url(),
+                model=os.getenv("OLLAMA_MODEL", "llama3.2-vision"),
+                max_tokens=int(os.getenv("MAX_TOKENS", "50")),
+                timeout=int(os.getenv("API_TIMEOUT", "30")),
+                max_retries=int(os.getenv("MAX_RETRIES", "3"))
+            )
+        else:
+            api_config = APIConfig(
+                api_key=self._get_api_key(),
+                provider=provider,
+                model=os.getenv("OPENAI_MODEL", "gpt-4-vision-preview"),
+                max_tokens=int(os.getenv("MAX_TOKENS", "50")),
+                timeout=int(os.getenv("API_TIMEOUT", "30")),
+                max_retries=int(os.getenv("MAX_RETRIES", "3"))
+            )
         
         return AppConfig(
             desktop_path=self.desktop_path,
@@ -60,8 +74,18 @@ class ConfigManager:
             api_config=api_config
         )
     
+    def _get_ollama_base_url(self) -> str:
+        """Get the local Ollama server URL without a trailing slash."""
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip()
+        if not base_url:
+            raise ValueError(
+                "OLLAMA_BASE_URL cannot be empty. Set it to your local Ollama server, "
+                "for example http://localhost:11434."
+            )
+        return base_url.rstrip("/")
+
     def _get_api_key(self) -> str:
-        """Get API key from environment variables."""
+        """Get the OpenAI API key from environment variables."""
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError(
@@ -82,11 +106,15 @@ class ConfigManager:
                 print(f"Error: No write permission to desktop directory {self.desktop_path}")
                 return False
             
-            # Validate API key
-            self._get_api_key()
-            
+            provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+            if provider not in {"openai", "ollama"}:
+                print("Error: LLM_PROVIDER must be either 'openai' or 'ollama'.")
+                return False
+            if provider == "openai":
+                self._get_api_key()
+
             return True
             
         except Exception as e:
             print(f"Configuration validation failed: {e}")
-            return False 
+            return False
