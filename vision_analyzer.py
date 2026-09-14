@@ -29,9 +29,10 @@ class VisionAnalyzer:
         self.cost_calculator = cost_calculator
         self.session = requests.Session()
         self.session.headers.update({
-            "Authorization": f"Bearer {api_config.api_key}",
             "Content-Type": "application/json"
         })
+        if api_config.provider == "openai":
+            self.session.headers.update({"Authorization": f"Bearer {api_config.api_key}"})
         self.last_errors: List[str] = []  # Track errors across retries
     
     def analyze_screenshot(self, image_path: Path) -> AnalysisResult:
@@ -134,39 +135,40 @@ class VisionAnalyzer:
             return None
     
     def _make_api_request(self, image_data: str) -> Optional[dict]:
-        """Make API request to analyze the image."""
-        payload = {
-            "model": self.api_config.model,
-            "messages": [
-                {
+        """Make a provider-specific request to analyze the image."""
+        prompt = (
+            "Analyze this screenshot and provide a concise 4-5 word description "
+            "that captures the main content or purpose. Focus on what the user "
+            "was doing or viewing. Examples: 'Web browser article reading', "
+            "'Code editor Python file', 'Settings screen preferences', "
+            "'Email inbox messages'. Be specific but brief."
+        )
+        if self.api_config.provider == "ollama":
+            payload = {
+                "model": self.api_config.model,
+                "messages": [{"role": "user", "content": prompt, "images": [image_data]}],
+                "stream": False,
+                "options": {"num_predict": self.api_config.max_tokens, "temperature": 0.3}
+            }
+            endpoint = "/api/chat"
+        else:
+            payload = {
+                "model": self.api_config.model,
+                "messages": [{
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": (
-                                "Analyze this screenshot and provide a concise 4-5 word description "
-                                "that captures the main content or purpose. Focus on what the user "
-                                "was doing or viewing. Examples: 'Web browser article reading', "
-                                "'Code editor Python file', 'Settings screen preferences', "
-                                "'Email inbox messages'. Be specific but brief."
-                            )
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_data}"
-                            }
-                        }
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
                     ]
-                }
-            ],
-            "max_tokens": self.api_config.max_tokens,
-            "temperature": 0.3  # Lower temperature for more consistent descriptions
-        }
+                }],
+                "max_tokens": self.api_config.max_tokens,
+                "temperature": 0.3
+            }
+            endpoint = "/chat/completions"
         
         try:
             response = self.session.post(
-                f"{self.api_config.base_url}/chat/completions",
+                f"{self.api_config.base_url}{endpoint}",
                 json=payload,
                 timeout=self.api_config.timeout
             )
@@ -184,7 +186,63 @@ class VisionAnalyzer:
             raise enhanced_error
     
     def _analyze_api_error(self, error: requests.exceptions.RequestException) -> str:
-        """Analyze API error and provide specific guidance."""
+        """Analyze provider-specific API errors and provide actionable guidance."""
+        if self.api_config.provider == "ollama":
+            return self._analyze_ollama_error(error)
+
+        if hasattr(error, 'response') and error.response is not None:
+            status_code = error.response.status_code
+            try:
+                error_body = error.response.json()
+                api_error_message = error_body.get('error', {}).get('message', '')
+            except Exception:
+                api_error_message = getattr(error.response, 'text', '')[:200]
+
+            if status_code == 401:
+                return f"Authentication failed (401): Invalid or expired API key. Please check your OPENAI_API_KEY in the .env file. API response: {api_error_message}"
+            if status_code == 403:
+                return f"Access forbidden (403): API key doesn't have required permissions. Ensure your API key has access to GPT-4 Vision. API response: {api_error_message}"
+            if status_code == 429:
+                if 'quota' in api_error_message.lower():
+                    return f"Quota exceeded (429): You've reached your API usage limit. Check your OpenAI billing and usage limits. API response: {api_error_message}"
+                return f"Rate limit exceeded (429): Too many requests. The script will automatically retry with backoff. API response: {api_error_message}"
+            if status_code == 400:
+                if 'model' in api_error_message.lower():
+                    return f"Invalid model (400): The model '{self.api_config.model}' may not exist or be accessible. Check your OPENAI_MODEL setting in .env. API response: {api_error_message}"
+                return f"Bad request (400): Invalid request format or parameters. API response: {api_error_message}"
+            if status_code == 404:
+                return f"Not found (404): The API endpoint or resource was not found. This may indicate an issue with the API URL or the model name. API response: {api_error_message}"
+            if status_code == 422:
+                return f"Unprocessable entity (422): The request was well-formed but contains invalid data. This often happens with unsupported image formats or sizes. API response: {api_error_message}"
+            if status_code == 500:
+                return f"OpenAI server error (500): Temporary issue with OpenAI's servers. This is usually temporary - the script will retry automatically. API response: {api_error_message}"
+            if status_code == 502:
+                return f"Bad gateway (502): Issue with OpenAI's server infrastructure. This is usually temporary - the script will retry automatically. API response: {api_error_message}"
+            if status_code == 503:
+                return f"Service unavailable (503): OpenAI servers are temporarily overloaded. This is usually temporary - the script will retry automatically. API response: {api_error_message}"
+            if status_code == 504:
+                return f"Gateway timeout (504): Request took too long to process. This may indicate server overload - the script will retry automatically. API response: {api_error_message}"
+            return f"HTTP {status_code} error: {api_error_message or 'Unknown error'}. This is an unexpected status code. If the problem persists, check OpenAI's status page or contact support. Full error: {str(error)}"
+
+        # SSLError subclasses ConnectionError, so it must be checked first.
+        if isinstance(error, requests.exceptions.SSLError):
+            return f"SSL/TLS error: Problem with secure connection to OpenAI. This may indicate network configuration issues. Detailed error: {str(error)}"
+        if isinstance(error, requests.exceptions.ConnectionError):
+            return f"Network connection error: Cannot reach OpenAI servers. Check your internet connection and firewall settings. Detailed error: {str(error)}"
+        if isinstance(error, requests.exceptions.Timeout):
+            return f"Request timeout: API call took longer than {self.api_config.timeout} seconds. This may indicate network issues or server overload. Detailed error: {str(error)}"
+        if isinstance(error, requests.exceptions.TooManyRedirects):
+            return f"Too many redirects: The request was redirected too many times. This may indicate an issue with the API URL configuration. Detailed error: {str(error)}"
+        if isinstance(error, requests.exceptions.ChunkedEncodingError):
+            return f"Chunked encoding error: Problem receiving response data. This may indicate network issues or server problems. Detailed error: {str(error)}"
+        if isinstance(error, requests.exceptions.ContentDecodingError):
+            return f"Content decoding error: Problem decoding the response. This may indicate server issues or corrupted data. Detailed error: {str(error)}"
+        if isinstance(error, requests.exceptions.RequestException):
+            return f"Request exception: An unexpected network or HTTP error occurred. Detailed error: {str(error)}"
+        return f"Unexpected error: {type(error).__name__}: {str(error)}. This is an unexpected error type. If the problem persists, please report this as a bug."
+
+    def _analyze_ollama_error(self, error: requests.exceptions.RequestException) -> str:
+        """Analyze errors returned by the local Ollama service."""
         if hasattr(error, 'response') and error.response is not None:
             status_code = error.response.status_code
             
@@ -202,71 +260,45 @@ class VisionAnalyzer:
                     api_error_message = 'Unable to retrieve error details'
                     api_error_type = ''
             
-            if status_code == 401:
-                return (
-                    f"Authentication failed (401): Invalid or expired API key. "
-                    f"Please check your OPENAI_API_KEY in the .env file. "
-                    f"API response: {api_error_message}"
-                )
-            elif status_code == 403:
-                return (
-                    f"Access forbidden (403): API key doesn't have required permissions. "
-                    f"Ensure your API key has access to GPT-4 Vision. "
-                    f"API response: {api_error_message}"
-                )
-            elif status_code == 429:
-                if 'quota' in api_error_message.lower():
-                    return (
-                        f"Quota exceeded (429): You've reached your API usage limit. "
-                        f"Check your OpenAI billing and usage limits. "
-                        f"API response: {api_error_message}"
-                    )
-                else:
-                    return (
-                        f"Rate limit exceeded (429): Too many requests. "
-                        f"The script will automatically retry with backoff. "
-                        f"API response: {api_error_message}"
-                    )
-            elif status_code == 400:
+            if status_code == 400:
                 if 'model' in api_error_message.lower():
                     return (
-                        f"Invalid model (400): The model '{self.api_config.model}' may not exist or be accessible. "
-                        f"Check your OPENAI_MODEL setting in .env. "
+                        f"Invalid Ollama model (400): '{self.api_config.model}' is unavailable or does not support this request. "
+                        f"Run `ollama pull {self.api_config.model}` and verify OLLAMA_MODEL in .env. "
                         f"API response: {api_error_message}"
                     )
                 else:
                     return (
-                        f"Bad request (400): Invalid request format or parameters. "
+                        f"Bad Ollama request (400): Invalid request format or parameters. "
                         f"API response: {api_error_message}"
                     )
             elif status_code == 404:
                 return (
-                    f"Not found (404): The API endpoint or resource was not found. "
-                    f"This may indicate an issue with the API URL or the model name. "
+                    f"Ollama endpoint or model not found (404). Check OLLAMA_BASE_URL "
+                    f"({self.api_config.base_url}) and run `ollama pull {self.api_config.model}`. "
                     f"API response: {api_error_message}"
                 )
             elif status_code == 422:
                 return (
-                    f"Unprocessable entity (422): The request was well-formed but contains invalid data. "
+                    f"Ollama could not process this request (422): The request contains invalid data. "
                     f"This often happens with unsupported image formats or sizes. "
                     f"API response: {api_error_message}"
                 )
             elif status_code == 500:
                 return (
-                    f"OpenAI server error (500): Temporary issue with OpenAI's servers. "
-                    f"This is usually temporary - the script will retry automatically. "
+                    f"Ollama server error (500): The local Ollama service could not process the request. "
+                    f"The script will retry automatically; check the Ollama service logs if it persists. "
                     f"API response: {api_error_message}"
                 )
             elif status_code == 502:
                 return (
-                    f"Bad gateway (502): Issue with OpenAI's server infrastructure. "
-                    f"This is usually temporary - the script will retry automatically. "
+                    f"Bad gateway from Ollama (502): Check that the Ollama service is running at "
+                    f"{self.api_config.base_url}. The script will retry automatically. "
                     f"API response: {api_error_message}"
                 )
             elif status_code == 503:
                 return (
-                    f"Service unavailable (503): OpenAI servers are temporarily overloaded. "
-                    f"This is usually temporary - the script will retry automatically. "
+                    f"Ollama service unavailable (503): Start or restart Ollama, then try again. "
                     f"API response: {api_error_message}"
                 )
             elif status_code == 504:
@@ -280,27 +312,27 @@ class VisionAnalyzer:
                 return (
                     f"HTTP {status_code} error: {api_error_message or 'Unknown error'}. "
                     f"This is an unexpected status code. If the problem persists, "
-                    f"check OpenAI's status page or contact support. "
+                    f"check that Ollama is running at {self.api_config.base_url}. "
                     f"Full error: {str(error)}"
                 )
         
         # Handle network-level errors
+        # SSLError subclasses ConnectionError, so it must be checked first.
+        elif isinstance(error, requests.exceptions.SSLError):
+            return (
+                f"SSL/TLS error connecting to Ollama. Check OLLAMA_BASE_URL and any local proxy configuration. "
+                f"Detailed error: {str(error)}"
+            )
         elif isinstance(error, requests.exceptions.ConnectionError):
             return (
-                f"Network connection error: Cannot reach OpenAI servers. "
-                f"Check your internet connection and firewall settings. "
+                f"Cannot reach the local Ollama service at {self.api_config.base_url}. "
+                f"Start it with `ollama serve` (or open the Ollama app) and verify OLLAMA_BASE_URL. "
                 f"Detailed error: {str(error)}"
             )
         elif isinstance(error, requests.exceptions.Timeout):
             return (
                 f"Request timeout: API call took longer than {self.api_config.timeout} seconds. "
-                f"This may indicate network issues or server overload. "
-                f"Detailed error: {str(error)}"
-            )
-        elif isinstance(error, requests.exceptions.SSLError):
-            return (
-                f"SSL/TLS error: Problem with secure connection to OpenAI. "
-                f"This may indicate network configuration issues. "
+                f"The local model may still be loading or generating; try a smaller model or increase API_TIMEOUT. "
                 f"Detailed error: {str(error)}"
             )
         elif isinstance(error, requests.exceptions.TooManyRedirects):
@@ -343,22 +375,18 @@ class VisionAnalyzer:
                 print(f"Error: API response is not a dictionary. Got {type(response)}: {str(response)[:100]}")
                 return "Screenshot content"  # Fallback description
             
-            if 'choices' not in response:
-                print(f"Error: API response missing 'choices' field. Response: {str(response)[:200]}")
-                return "Screenshot content"  # Fallback description
-            
-            if not response['choices'] or len(response['choices']) == 0:
-                print(f"Error: API response 'choices' array is empty. Response: {str(response)[:200]}")
-                return "Screenshot content"  # Fallback description
-            
-            choice = response['choices'][0]
-            if 'message' not in choice:
-                print(f"Error: First choice missing 'message' field. Choice: {str(choice)[:200]}")
-                return "Screenshot content"  # Fallback description
-            
-            message = choice['message']
+            if self.api_config.provider == "ollama":
+                if 'message' not in response:
+                    print(f"Error: Ollama response missing 'message' field. Response: {str(response)[:200]}")
+                    return "Screenshot content"
+                message = response['message']
+            else:
+                if 'choices' not in response or not response['choices']:
+                    print(f"Error: API response missing usable 'choices'. Response: {str(response)[:200]}")
+                    return "Screenshot content"
+                message = response['choices'][0].get('message', {})
             if 'content' not in message:
-                print(f"Error: Message missing 'content' field. Message: {str(message)[:200]}")
+                print(f"Error: API message missing 'content' field. Message: {str(message)[:200]}")
                 return "Screenshot content"  # Fallback description
             
             content = message['content']
@@ -456,10 +484,13 @@ class VisionAnalyzer:
             return "Screenshot content"  # Fallback description
     
     def test_connection(self) -> Tuple[bool, str]:
-        """Test if the API connection is working and return detailed status."""
+        """Test the configured provider and verify its model is available."""
+        if self.api_config.provider == "openai":
+            return self._test_openai_connection()
+
         try:
             response = self.session.get(
-                f"{self.api_config.base_url}/models",
+                f"{self.api_config.base_url}/api/tags",
                 timeout=10
             )
             
@@ -467,22 +498,68 @@ class VisionAnalyzer:
                 # Try to verify the model is available
                 try:
                     models_data = response.json()
+                    available_models = [model.get('name', '') for model in models_data.get('models', [])]
+                    model_names = set(available_models)
+                    requested_model = self.api_config.model
+                    model_is_available = (
+                        requested_model in model_names
+                        or f"{requested_model}:latest" in model_names
+                        or (requested_model.endswith(":latest") and requested_model[:-7] in model_names)
+                    )
+                    if model_is_available:
+                        return True, f"✅ Ollama connection successful. Model '{self.api_config.model}' is available."
+                    else:
+                        available = ', '.join(available_models[:5]) or 'none'
+                        return False, (
+                            f"⚠️ Ollama is running, but model '{self.api_config.model}' is not installed. "
+                            f"Run `ollama pull {self.api_config.model}`. Available models: {available}"
+                        )
+                except:
+                    return True, "✅ Ollama connection successful (couldn't verify installed models)."
+            else:
+                connection_error = requests.exceptions.RequestException(
+                    f"HTTP {response.status_code}"
+                )
+                connection_error.response = response
+                error_details = self._analyze_api_error(
+                    connection_error
+                )
+                error_details = error_details.replace("Request failed: ", "")
+                return False, f"❌ Ollama connection failed: {error_details}"
+                
+        except requests.exceptions.RequestException as e:
+            error_details = self._analyze_api_error(e)
+            return False, f"❌ Ollama connection failed: {error_details}"
+        except Exception as e:
+            return False, f"❌ Unexpected error testing Ollama connection: {str(e)}"
+
+    def _test_openai_connection(self) -> Tuple[bool, str]:
+        """Preserve the OpenAI model-list preflight behavior."""
+        try:
+            response = self.session.get(
+                f"{self.api_config.base_url}/models",
+                timeout=10
+            )
+            if response.status_code == 200:
+                try:
+                    models_data = response.json()
                     available_models = [model.get('id', '') for model in models_data.get('data', [])]
                     if self.api_config.model in available_models:
                         return True, f"✅ API connection successful. Model '{self.api_config.model}' is available."
-                    else:
-                        return False, f"⚠️ API connection successful, but model '{self.api_config.model}' is not available. Available models include: {', '.join(available_models[:5])}..."
-                except:
+                    return False, f"⚠️ API connection successful, but model '{self.api_config.model}' is not available. Available models include: {', '.join(available_models[:5])}..."
+                except Exception:
                     return True, "✅ API connection successful (couldn't verify model availability)."
-            else:
-                error_details = self._analyze_api_error(
-                    requests.exceptions.RequestException(f"HTTP {response.status_code}")
-                )
-                error_details = error_details.replace("Request failed: ", "")
-                return False, f"❌ API connection failed: {error_details}"
-                
+
+            connection_error = requests.exceptions.RequestException(
+                f"HTTP {response.status_code}"
+            )
+            connection_error.response = response
+            error_details = self._analyze_api_error(connection_error).replace(
+                "Request failed: ", ""
+            )
+            return False, f"❌ API connection failed: {error_details}"
         except requests.exceptions.RequestException as e:
             error_details = self._analyze_api_error(e)
             return False, f"❌ API connection failed: {error_details}"
         except Exception as e:
-            return False, f"❌ Unexpected error testing API connection: {str(e)}" 
+            return False, f"❌ Unexpected error testing API connection: {str(e)}"

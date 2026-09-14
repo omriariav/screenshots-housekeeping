@@ -26,13 +26,19 @@ def main():
     """Run all tests in the tests directory."""
     tests_dir = Path(__file__).parent
     test_files = [
+        "test_installation.py",
         "test_grouping.py",
+        "test_rename_grouping.py",
+        "test_cost_estimation.py",
         "test_regex_fix_documentation.py",
         "test_screen_shot_support.py",
         "test_screen_shot_comprehensive.py",
         "test_safety_refusal_handling.py",
         "test_desktop_path_config.py",
-        "test_enhanced_error_handling.py"
+        "test_enhanced_error_handling.py",
+        "test_provider_cost_tracking.py",
+        "test_ollama_support.py",
+        "test_automator_runner.py"
     ]
     
     print("🧪 Running Screenshot Renaming Tool Test Suite")
@@ -69,4 +75,4 @@ def main():
 
 if __name__ == "__main__":
     success = main()
-    sys.exit(0 if success else 1) 
+    sys.exit(0 if success else 1)

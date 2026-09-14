@@ -37,17 +37,22 @@ class ScreenshotRenamer:
             
             # Initialize components
             self.file_manager = FileManager(self.config.desktop_path)
-            self.cost_calculator = CostCalculator()
+            provider = getattr(self.config.api_config, "provider", "openai")
+            self.cost_calculator = CostCalculator(provider)
             self.vision_analyzer = VisionAnalyzer(self.config.api_config, self.cost_calculator)
-            self.logger = ActionLogger(self.config.log_file_path)
+            self.logger = ActionLogger(self.config.log_file_path, provider)
             
-            # Test API connection
-            print("Testing API connection...")
+            is_local = self.cost_calculator.is_local
+            print("Testing Ollama connection..." if is_local else "Testing API connection...")
             connection_ok, connection_message = self.vision_analyzer.test_connection()
             print(connection_message)
             if not connection_ok:
-                print("Warning: API connection issues detected. The script may fail during processing.")
-                print("Please check your API key and network connection before proceeding.")
+                if is_local:
+                    print("Warning: Ollama connection issues detected. The script may fail during processing.")
+                    print("Please check that Ollama is running and the configured model is installed.")
+                else:
+                    print("Warning: API connection issues detected. The script may fail during processing.")
+                    print("Please check your API key and network connection before proceeding.")
             
             return True
             
@@ -72,18 +77,19 @@ class ScreenshotRenamer:
             
             self.logger.log_scan_results(len(screenshots))
             
-            # Group screenshots and show cost estimate
+            # Group screenshots and show the provider request estimate
             timestamp_groups = self.file_manager.group_screenshots_by_timestamp(screenshots)
             cost_estimate = self.cost_calculator.estimate_costs_grouped(timestamp_groups)
             self.logger.log_cost_estimate(cost_estimate)
             
             print(f"Found {len(screenshots)} screenshot files in {len(timestamp_groups)} timestamp groups")
-            print(f"Will make {len(timestamp_groups)} API calls instead of {len(screenshots)}\n")
+            request_label = "Ollama model requests" if self.cost_calculator.is_local else "API calls"
+            print(f"Will make {len(timestamp_groups)} {request_label} instead of {len(screenshots)}\n")
             
             # Process screenshots in batches
             self._process_screenshots_batch(screenshots)
             
-            # Log actual costs and generate final summary
+            # Log provider usage and generate final summary
             actual_costs = self.cost_calculator.get_actual_costs()
             self.logger.log_actual_costs(actual_costs)
             summary = self.logger.generate_summary()
@@ -94,7 +100,7 @@ class ScreenshotRenamer:
         except KeyboardInterrupt:
             print("\n\nOperation cancelled by user.")
             self.logger.log_error("Operation cancelled by user")
-            # Log costs even if cancelled
+            # Log provider usage even if cancelled
             if self.cost_calculator:
                 actual_costs = self.cost_calculator.get_actual_costs()
                 self.logger.log_actual_costs(actual_costs)
@@ -104,7 +110,7 @@ class ScreenshotRenamer:
             
         except Exception as e:
             self.logger.log_error(f"Unexpected error in main processing: {e}")
-            # Log costs even if error occurred
+            # Log provider usage even if an error occurred
             if self.cost_calculator:
                 actual_costs = self.cost_calculator.get_actual_costs()
                 self.logger.log_actual_costs(actual_costs)
@@ -163,11 +169,11 @@ class ScreenshotRenamer:
             except Exception as e:
                 self.logger.log_error(f"Error processing group {timestamp}: {e}")
                 processed_files += len(group_screenshots)
-            
-            # Small delay between groups to be respectful of API rate limits
-            if group_num < total_groups:
+
+            # Preserve the existing courtesy delay for cloud OpenAI calls.
+            if not self.cost_calculator.is_local and group_num < total_groups:
                 time.sleep(1)
-    
+
     def _process_single_screenshot(self, screenshot: ScreenshotFile):
         """Process a single screenshot file."""
         try:
@@ -209,11 +215,15 @@ class ScreenshotRenamer:
         if len(screenshots) > 5:
             print(f"  ... and {len(screenshots) - 5} more files")
         
-        # Show cost estimate with grouping
+        # Show provider request estimate with grouping
         timestamp_groups = self.file_manager.group_screenshots_by_timestamp(screenshots)
         cost_estimate = self.cost_calculator.estimate_costs_grouped(timestamp_groups)
-        print(f"\n💰 Estimated cost: ${cost_estimate.total_estimated_cost:.4f}")
-        print(f"   • {len(timestamp_groups)} API calls (grouped by timestamp) × ${cost_estimate.total_estimated_cost/cost_estimate.total_images:.4f} each")
+        if self.cost_calculator.is_local:
+            print(f"\n🖥️  Ollama model requests: {len(timestamp_groups)}")
+            print("   • OpenAI API cost: $0.0000 (Ollama inference)")
+        else:
+            print(f"\n💰 Estimated cost: ${cost_estimate.total_estimated_cost:.4f}")
+            print(f"   • {len(timestamp_groups)} API calls (grouped by timestamp) × ${cost_estimate.total_estimated_cost/cost_estimate.total_images:.4f} each")
         print(f"   • Processing {len(screenshots)} files but only analyzing {len(timestamp_groups)} unique timestamps")
         
         # Ask for confirmation
@@ -249,4 +259,4 @@ def main():
         renamer.run_interactive_mode()
 
 if __name__ == "__main__":
-    main() 
+    main()

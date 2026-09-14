@@ -58,10 +58,11 @@ def test_desktop_path_in_app_config():
     with tempfile.TemporaryDirectory() as temp_dir:
         custom_path = temp_dir
         
-        # Mock API key to avoid validation error
+        # Ollama mode does not require an OpenAI API key.
         with patch.dict(os.environ, {
             'DESKTOP_PATH': custom_path,
-            'OPENAI_API_KEY': 'test-key-123'
+            'LLM_PROVIDER': 'ollama',
+            'OLLAMA_MODEL': 'llama3.2-vision'
         }):
             config_manager = ConfigManager()
             
@@ -109,7 +110,8 @@ def test_path_validation():
         
         with patch.dict(os.environ, {
             'DESKTOP_PATH': custom_path,
-            'OPENAI_API_KEY': 'test-key-123'
+            'LLM_PROVIDER': 'ollama',
+            'OLLAMA_MODEL': 'llama3.2-vision'
         }):
             config_manager = ConfigManager()
             
@@ -129,7 +131,8 @@ def test_nonexistent_path():
     
     with patch.dict(os.environ, {
         'DESKTOP_PATH': nonexistent_path,
-        'OPENAI_API_KEY': 'test-key-123'
+        'LLM_PROVIDER': 'ollama',
+        'OLLAMA_MODEL': 'llama3.2-vision'
     }):
         config_manager = ConfigManager()
         
@@ -149,6 +152,34 @@ def test_nonexistent_path():
             print(f"❌ Expected: {expected_path}, Got: {config_manager.desktop_path}")
             return False
 
+def test_openai_key_is_required_only_for_openai():
+    """Test that the selected provider controls whether an OpenAI key is required."""
+    print("Testing provider-specific API key validation...")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        base_env = {
+            'DESKTOP_PATH': temp_dir,
+            'OPENAI_API_KEY': '',
+            'OLLAMA_MODEL': 'llama3.2-vision'
+        }
+
+        with patch.dict(os.environ, {**base_env, 'LLM_PROVIDER': 'ollama'}, clear=False):
+            try:
+                ConfigManager().get_config()
+            except ValueError as error:
+                print(f"❌ Ollama mode unexpectedly required an API key: {error}")
+                return False
+
+        with patch.dict(os.environ, {**base_env, 'LLM_PROVIDER': 'openai'}, clear=False):
+            try:
+                ConfigManager().get_config()
+            except ValueError:
+                print("✅ OpenAI mode requires OPENAI_API_KEY while Ollama mode does not")
+                return True
+
+            print("❌ OpenAI mode should require OPENAI_API_KEY")
+            return False
+
 def main():
     """Run all DESKTOP_PATH configuration tests."""
     print("DESKTOP_PATH Configuration Tests")
@@ -160,7 +191,8 @@ def main():
         ("Desktop Path in AppConfig", test_desktop_path_in_app_config),
         ("Log File Path Updates", test_log_file_path_updates),
         ("Path Validation", test_path_validation),
-        ("Non-existent Path Handling", test_nonexistent_path)
+        ("Non-existent Path Handling", test_nonexistent_path),
+        ("Provider-Specific API Key Validation", test_openai_key_is_required_only_for_openai)
     ]
     
     all_passed = True
@@ -188,4 +220,4 @@ def main():
     return 0 if all_passed else 1
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

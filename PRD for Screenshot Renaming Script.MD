@@ -19,7 +19,7 @@ Users take frequent screenshots on their Mac, which are automatically named with
   - Identify all screenshot files on the Mac desktop (files starting with "Screenshot" and ending with ".png").
   - Support common screenshot formats (e.g., PNG).
 - **Image Analysis**:
-  - Use an LLM with vision capabilities (e.g., a model accessible via an API) to analyze the content of each screenshot.
+  - Use a vision-capable LLM to analyze the content of each screenshot, selected by the user from OpenAI or Ollama.
   - Generate a 4-5 word description summarizing the screenshot’s content (e.g., "Web browser with article").
 - **File Renaming**:
   - Rename each screenshot by combining the generated description with the original timestamp (e.g., "Web browser with article 2025-06-09 at 09.24.15.png").
@@ -40,8 +40,9 @@ Users take frequent screenshots on their Mac, which are automatically named with
 - **Compatibility**:
   - Compatible with macOS (tested on macOS Ventura or later).
   - Use Python 3.8+ for broad compatibility.
-- **Security**:
-  - Use secure API calls for LLM processing.
+- **Security and Privacy**:
+  - Use secure API calls for OpenAI processing and protect API keys in environment variables.
+  - Support local Ollama processing so users can keep screenshots on-device when the Ollama endpoint is localhost.
   - Do not modify or delete original screenshot files without renaming success.
 - **Usability**:
   - Simple setup with minimal dependencies.
@@ -72,7 +73,7 @@ Users take frequent screenshots on their Mac, which are automatically named with
 - **Dependencies**:
   - `os` and `pathlib` for file handling.
   - `PIL` (Pillow) for image processing.
-  - LLM API (e.g., xAI’s Grok API with vision capabilities or similar) for content analysis.
+  - A vision-capable OpenAI model or a vision-capable Ollama model for content analysis.
   - `requests` for API calls.
 - **Execution Flow**:
   1. Scan `~/Desktop` for files matching "Screenshot*.png".
@@ -93,13 +94,13 @@ Users take frequent screenshots on their Mac, which are automatically named with
 
 ## 6. Assumptions
 - Users have Python installed on their Mac.
-- Users have access to an LLM API with vision capabilities (e.g., xAI’s API; see https://x.ai/api for details).
+- Users choose one supported provider: an OpenAI account/API key with a vision-capable model, or a running Ollama service with a pulled vision-capable model.
 - Screenshots follow the default macOS naming convention ("Screenshot [date] at [time].png").
 - Desktop directory is accessible and writable.
 
 ## 7. Risks and Mitigations
-- **Risk**: LLM API rate limits or downtime.
-  - **Mitigation**: Implement retry logic and user notification for API failures.
+- **Risk**: OpenAI rate limits/downtime or an unavailable local Ollama service/model.
+  - **Mitigation**: Implement retry logic and provider-specific diagnostics (including how to start Ollama or pull a missing model).
 - **Risk**: Filename conflicts or invalid characters.
   - **Mitigation**: Sanitize descriptions to remove special characters and check for existing files before renaming.
 - **Risk**: Slow performance with many screenshots.
@@ -117,7 +118,7 @@ Users take frequent screenshots on their Mac, which are automatically named with
 - Script successfully renames at least 95% of screenshots with accurate, concise descriptions.
 - No data loss (original screenshots remain intact if renaming fails).
 - Log file is clear and lists all actions and errors.
-- User can run the script with minimal setup (e.g., install dependencies, provide API key).
+- User can run the script with minimal setup by selecting OpenAI and providing an API key, or by starting Ollama and pulling a vision-capable local model.
 
 ## 10. Future Enhancements
 - Add a GUI for easier execution and configuration.
