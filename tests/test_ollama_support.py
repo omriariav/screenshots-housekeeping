@@ -12,6 +12,14 @@ from vision_analyzer import VisionAnalyzer
 
 
 class TestOllamaConfiguration(unittest.TestCase):
+    def test_api_config_preserves_legacy_positional_argument_order(self):
+        config = APIConfig("key", "https://example.test/v1", "vision-model")
+
+        self.assertEqual(config.api_key, "key")
+        self.assertEqual(config.base_url, "https://example.test/v1")
+        self.assertEqual(config.model, "vision-model")
+        self.assertEqual(config.provider, "openai")
+
     def test_ollama_config_needs_no_api_key_and_normalizes_base_url(self):
         with patch.dict(os.environ, {
             "LLM_PROVIDER": "ollama",

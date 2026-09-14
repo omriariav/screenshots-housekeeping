@@ -13,12 +13,12 @@ load_dotenv()
 class APIConfig:
     """Configuration for a supported LLM API provider."""
     api_key: Optional[str] = None
-    provider: str = "openai"
     base_url: str = "https://api.openai.com/v1"
     model: str = "gpt-4-vision-preview"
     max_tokens: int = 50
     timeout: int = 30
     max_retries: int = 3
+    provider: str = "openai"
 
 @dataclass
 class AppConfig:
