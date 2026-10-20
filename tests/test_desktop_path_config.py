@@ -87,9 +87,10 @@ def test_log_file_path_updates():
     with tempfile.TemporaryDirectory() as temp_dir:
         custom_path = temp_dir
         
-        with patch.dict(os.environ, {'DESKTOP_PATH': custom_path}):
+        with patch.dict(os.environ, {'DESKTOP_PATH': custom_path}), \
+                patch('config.get_machine_name', return_value='Test Mac'):
             config_manager = ConfigManager()
-            expected_log_path = Path(custom_path) / "screenshot_rename_log.txt"
+            expected_log_path = Path(custom_path) / "screenshot_rename_log - Test Mac.txt"
             
             if config_manager.log_file_path == expected_log_path:
                 print(f"✅ Log file path updates correctly: {config_manager.log_file_path}")

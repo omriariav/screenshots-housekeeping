@@ -1,6 +1,8 @@
 """Configuration management for the Screenshot Renaming Script."""
 
 import os
+import platform
+import subprocess
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
@@ -8,6 +10,19 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+def get_machine_name() -> str:
+    """Return the macOS computer name, falling back to the network hostname."""
+    try:
+        name = subprocess.run(
+            ["/usr/sbin/scutil", "--get", "ComputerName"],
+            capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+        if name:
+            return name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return platform.node() or "unknown"
 
 @dataclass
 class APIConfig:
@@ -28,6 +43,8 @@ class AppConfig:
     api_config: APIConfig
     description_length: int = 5  # target number of words
     batch_size: int = 5
+    screenshot_prefix: Optional[str] = None  # None matches the default macOS prefixes
+    machine_name: str = "unknown"
 
 class ConfigManager:
     """Manages application configuration and environment setup."""
@@ -39,7 +56,12 @@ class ConfigManager:
             self.desktop_path = Path(desktop_path_env)
         else:
             self.desktop_path = Path.home() / "Desktop"
-        self.log_file_path = self.desktop_path / "screenshot_rename_log.txt"
+        # One log per Mac: a Desktop shared via iCloud would otherwise get
+        # conflicting writes to a single log file from several machines.
+        # Look the name up once so the log filename and session header always agree.
+        self.machine_name = get_machine_name()
+        safe_name = self.machine_name.replace("/", "-").replace(":", "-")
+        self.log_file_path = self.desktop_path / f"screenshot_rename_log - {safe_name}.txt"
         
     def get_config(self) -> AppConfig:
         """Get complete application configuration."""
@@ -51,7 +73,7 @@ class ConfigManager:
             api_config = APIConfig(
                 provider=provider,
                 base_url=self._get_ollama_base_url(),
-                model=os.getenv("OLLAMA_MODEL", "llama3.2-vision"),
+                model=os.getenv("OLLAMA_MODEL", "qwen2.5vl:7b"),
                 max_tokens=int(os.getenv("MAX_TOKENS", "50")),
                 timeout=int(os.getenv("API_TIMEOUT", "30")),
                 max_retries=int(os.getenv("MAX_RETRIES", "3"))
@@ -71,9 +93,23 @@ class ConfigManager:
             log_file_path=self.log_file_path,
             description_length=int(os.getenv("DESCRIPTION_LENGTH", "5")),
             batch_size=int(os.getenv("BATCH_SIZE", "5")),
+            screenshot_prefix=self._get_screenshot_prefix(),
+            machine_name=self.machine_name,
             api_config=api_config
         )
     
+    def _get_screenshot_prefix(self) -> Optional[str]:
+        """Get the custom screenshot filename prefix, or None to use the macOS defaults."""
+        prefix = os.getenv("SCREENSHOT_PREFIX", "").strip()
+        if not prefix:
+            return None
+        if any(char in prefix for char in "/:") or any(ord(char) < 32 for char in prefix):
+            raise ValueError(
+                "SCREENSHOT_PREFIX cannot contain '/', ':' or control characters. "
+                "Use the same value as `defaults read com.apple.screencapture name`."
+            )
+        return prefix
+
     def _get_ollama_base_url(self) -> str:
         """Get the local Ollama server URL without a trailing slash."""
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip()

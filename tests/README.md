@@ -29,7 +29,7 @@ For Ollama, a typical local setup is:
 
 ```bash
 ollama serve
-ollama pull llama3.2-vision
+ollama pull qwen2.5vl:7b
 ```
 
 ## Screenshot and rename coverage

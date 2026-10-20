@@ -36,11 +36,11 @@ class ScreenshotRenamer:
             self.config = self.config_manager.get_config()
             
             # Initialize components
-            self.file_manager = FileManager(self.config.desktop_path)
+            self.file_manager = FileManager(self.config.desktop_path, self.config.screenshot_prefix)
             provider = getattr(self.config.api_config, "provider", "openai")
             self.cost_calculator = CostCalculator(provider)
             self.vision_analyzer = VisionAnalyzer(self.config.api_config, self.cost_calculator)
-            self.logger = ActionLogger(self.config.log_file_path, provider)
+            self.logger = ActionLogger(self.config.log_file_path, provider, self.config.machine_name)
             
             is_local = self.cost_calculator.is_local
             print("Testing Ollama connection..." if is_local else "Testing API connection...")
