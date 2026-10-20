@@ -28,6 +28,7 @@ class AppConfig:
     api_config: APIConfig
     description_length: int = 5  # target number of words
     batch_size: int = 5
+    screenshot_prefix: Optional[str] = None  # None matches the default macOS prefixes
 
 class ConfigManager:
     """Manages application configuration and environment setup."""
@@ -71,9 +72,22 @@ class ConfigManager:
             log_file_path=self.log_file_path,
             description_length=int(os.getenv("DESCRIPTION_LENGTH", "5")),
             batch_size=int(os.getenv("BATCH_SIZE", "5")),
+            screenshot_prefix=self._get_screenshot_prefix(),
             api_config=api_config
         )
     
+    def _get_screenshot_prefix(self) -> Optional[str]:
+        """Get the custom screenshot filename prefix, or None to use the macOS defaults."""
+        prefix = os.getenv("SCREENSHOT_PREFIX", "").strip()
+        if not prefix:
+            return None
+        if any(char in prefix for char in "/:") or any(ord(char) < 32 for char in prefix):
+            raise ValueError(
+                "SCREENSHOT_PREFIX cannot contain '/', ':' or control characters. "
+                "Use the same value as `defaults read com.apple.screencapture name`."
+            )
+        return prefix
+
     def _get_ollama_base_url(self) -> str:
         """Get the local Ollama server URL without a trailing slash."""
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip()

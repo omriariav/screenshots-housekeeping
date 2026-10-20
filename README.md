@@ -115,6 +115,9 @@ BATCH_SIZE=5
 
 # Optional input folder (defaults to ~/Desktop)
 # DESKTOP_PATH=/Users/yourname/Desktop
+
+# Optional: only rename screenshots with this filename prefix
+# SCREENSHOT_PREFIX="Work Screenshot"
 ```
 
 Use a vision-capable model for either provider. If an invalid `LLM_PROVIDER` is configured, the tool stops before scanning or renaming files.
@@ -153,6 +156,25 @@ In Automator, create a **Folder Action**, attach it to **Desktop**, add **Run Sh
 
 The runner discovers the repository path automatically, uses `.venv/bin/python`, waits briefly for macOS to finish writing the screenshot, prevents overlapping runs, and appends diagnostics to `automator.log`. Before enabling automation, run it manually once to verify the selected provider. See [Apple's Automator workflow guide](https://support.apple.com/guide/automator/create-a-workflow-aut7cac58839/mac) for the current Folder Action interface.
 
+### Multiple Macs sharing a Desktop
+
+If your Desktop syncs between Macs (for example with iCloud Desktop & Documents) and each Mac runs the Folder Action, both Macs can try to rename the same screenshot. Give each Mac its own screenshot prefix so each one renames only the screenshots it took.
+
+On each Mac, set a distinct prefix and take a test screenshot to confirm the new filename:
+
+```bash
+defaults write com.apple.screencapture name "Work Screenshot"   # "Personal Screenshot" on the other Mac
+killall SystemUIServer
+```
+
+Then set the same value in that Mac's `.env`:
+
+```bash
+SCREENSHOT_PREFIX="Work Screenshot"
+```
+
+When `SCREENSHOT_PREFIX` is set, only files named `<prefix> <date> at <time>.png` (or with a ` (N)` suffix) are renamed; default `Screenshot`/`Screen Shot` files are left alone, so neither Mac claims them. Renamed files keep their prefix. Don't disable the timestamp (`defaults write com.apple.screencapture include-date`), because matching relies on it. Each session in `screenshot_rename_log.txt` records which Mac ran it.
+
 ## Troubleshooting
 
 ### OpenAI: API key not found or authentication fails
@@ -188,7 +210,7 @@ Recent Ollama versions cannot load `llama3.2-vision`. Pull a supported vision mo
 
 ### No screenshots are found
 
-The default scan location is `~/Desktop`, and filenames must follow a supported macOS Screenshot/Screen Shot pattern. Set `DESKTOP_PATH` to scan a different writable directory.
+The default scan location is `~/Desktop`, and filenames must follow a supported macOS Screenshot/Screen Shot pattern. Set `DESKTOP_PATH` to scan a different writable directory. If `SCREENSHOT_PREFIX` is set, it must exactly match `defaults read com.apple.screencapture name`.
 
 ### Permission denied or renames fail
 
