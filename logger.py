@@ -1,6 +1,8 @@
 """Logging and reporting functionality for screenshot renaming operations."""
 
 import datetime
+import platform
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Any
 from dataclasses import dataclass, field
@@ -8,6 +10,19 @@ from dataclasses import dataclass, field
 from file_manager import RenameResult
 from vision_analyzer import AnalysisResult
 from cost_calculator import CostEstimate, ActualCosts
+
+def get_machine_name() -> str:
+    """Return the macOS computer name, falling back to the network hostname."""
+    try:
+        name = subprocess.run(
+            ["scutil", "--get", "ComputerName"],
+            capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+        if name:
+            return name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return platform.node() or "unknown"
 
 @dataclass
 class ProcessingSummary:
@@ -47,7 +62,12 @@ class ActionLogger:
     def _initialize_session(self):
         """Initialize a new logging session."""
         self.summary.start_time = datetime.datetime.now()
-        header = f"\n{'='*60}\nScreenshot Renaming Session - {self.summary.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n{'='*60}\n"
+        header = (
+            f"\n{'='*60}\n"
+            f"Screenshot Renaming Session - {self.summary.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Machine: {get_machine_name()}\n"
+            f"{'='*60}\n"
+        )
         self.session_log.append(header)
     
     def log_scan_results(self, total_files: int):
@@ -189,9 +209,10 @@ Duration: {self.summary.duration}
     def save_log(self):
         """Save the session log to file."""
         try:
+            # Write the session in one call so runs from other Macs sharing
+            # this log file are less likely to interleave.
             with open(self.log_file_path, 'a', encoding='utf-8') as f:
-                for entry in self.session_log:
-                    f.write(entry + '\n')
+                f.write(''.join(entry + '\n' for entry in self.session_log))
             
             print(f"\nLog saved to: {self.log_file_path}")
             
