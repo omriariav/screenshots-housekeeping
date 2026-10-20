@@ -15,7 +15,7 @@ def get_machine_name() -> str:
     """Return the macOS computer name, falling back to the network hostname."""
     try:
         name = subprocess.run(
-            ["scutil", "--get", "ComputerName"],
+            ["/usr/sbin/scutil", "--get", "ComputerName"],
             capture_output=True, text=True, timeout=5, check=True,
         ).stdout.strip()
         if name:
@@ -44,6 +44,7 @@ class AppConfig:
     description_length: int = 5  # target number of words
     batch_size: int = 5
     screenshot_prefix: Optional[str] = None  # None matches the default macOS prefixes
+    machine_name: str = "unknown"
 
 class ConfigManager:
     """Manages application configuration and environment setup."""
@@ -57,8 +58,10 @@ class ConfigManager:
             self.desktop_path = Path.home() / "Desktop"
         # One log per Mac: a Desktop shared via iCloud would otherwise get
         # conflicting writes to a single log file from several machines.
-        machine = get_machine_name().replace("/", "-").replace(":", "-")
-        self.log_file_path = self.desktop_path / f"screenshot_rename_log - {machine}.txt"
+        # Look the name up once so the log filename and session header always agree.
+        self.machine_name = get_machine_name()
+        safe_name = self.machine_name.replace("/", "-").replace(":", "-")
+        self.log_file_path = self.desktop_path / f"screenshot_rename_log - {safe_name}.txt"
         
     def get_config(self) -> AppConfig:
         """Get complete application configuration."""
@@ -91,6 +94,7 @@ class ConfigManager:
             description_length=int(os.getenv("DESCRIPTION_LENGTH", "5")),
             batch_size=int(os.getenv("BATCH_SIZE", "5")),
             screenshot_prefix=self._get_screenshot_prefix(),
+            machine_name=self.machine_name,
             api_config=api_config
         )
     

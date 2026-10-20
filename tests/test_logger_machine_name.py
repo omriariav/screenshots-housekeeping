@@ -52,6 +52,15 @@ class TestPerMachineLog(unittest.TestCase):
 
             self.assertIn("Machine: Work MacBook", log_path.read_text(encoding="utf-8"))
 
+    def test_machine_name_looked_up_once_for_path_and_config(self):
+        with patch("config.get_machine_name", return_value="Work MacBook") as lookup, \
+                patch.dict(os.environ, {"LLM_PROVIDER": "ollama"}):
+            manager = ConfigManager()
+            config = manager.get_config()
+        self.assertEqual(lookup.call_count, 1)
+        self.assertEqual(config.machine_name, "Work MacBook")
+        self.assertTrue(config.log_file_path.name.endswith("Work MacBook.txt"))
+
 
 if __name__ == "__main__":
     unittest.main()

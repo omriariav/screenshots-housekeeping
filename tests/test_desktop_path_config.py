@@ -10,7 +10,7 @@ from unittest.mock import patch
 # Add parent directory to path to import modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import ConfigManager, AppConfig, get_machine_name
+from config import ConfigManager, AppConfig
 
 def test_default_desktop_path():
     """Test that default desktop path is used when DESKTOP_PATH is not set."""
@@ -87,9 +87,10 @@ def test_log_file_path_updates():
     with tempfile.TemporaryDirectory() as temp_dir:
         custom_path = temp_dir
         
-        with patch.dict(os.environ, {'DESKTOP_PATH': custom_path}):
+        with patch.dict(os.environ, {'DESKTOP_PATH': custom_path}), \
+                patch('config.get_machine_name', return_value='Test Mac'):
             config_manager = ConfigManager()
-            expected_log_path = Path(custom_path) / f"screenshot_rename_log - {get_machine_name()}.txt"
+            expected_log_path = Path(custom_path) / "screenshot_rename_log - Test Mac.txt"
             
             if config_manager.log_file_path == expected_log_path:
                 print(f"✅ Log file path updates correctly: {config_manager.log_file_path}")

@@ -2,7 +2,7 @@
 
 import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 
 from file_manager import RenameResult
@@ -37,8 +37,9 @@ class ProcessingSummary:
 class ActionLogger:
     """Handles logging and reporting of all screenshot processing operations."""
     
-    def __init__(self, log_file_path: Path, model_provider: str = "openai"):
+    def __init__(self, log_file_path: Path, model_provider: str = "openai", machine_name: Optional[str] = None):
         self.log_file_path = log_file_path
+        self.machine_name = machine_name or get_machine_name()
         self.session_log: List[str] = []
         self.summary = ProcessingSummary(model_provider=model_provider)
         
@@ -51,7 +52,7 @@ class ActionLogger:
         header = (
             f"\n{'='*60}\n"
             f"Screenshot Renaming Session - {self.summary.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Machine: {get_machine_name()}\n"
+            f"Machine: {self.machine_name}\n"
             f"{'='*60}\n"
         )
         self.session_log.append(header)
@@ -195,8 +196,7 @@ Duration: {self.summary.duration}
     def save_log(self):
         """Save the session log to file."""
         try:
-            # Write the session in one call so runs from other Macs sharing
-            # this log file are less likely to interleave.
+            # Write the session in one call so a concurrent run can't interleave with it.
             with open(self.log_file_path, 'a', encoding='utf-8') as f:
                 f.write(''.join(entry + '\n' for entry in self.session_log))
             
