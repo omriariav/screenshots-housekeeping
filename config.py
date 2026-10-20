@@ -51,7 +51,7 @@ class ConfigManager:
             api_config = APIConfig(
                 provider=provider,
                 base_url=self._get_ollama_base_url(),
-                model=os.getenv("OLLAMA_MODEL", "llama3.2-vision"),
+                model=os.getenv("OLLAMA_MODEL", "qwen2.5vl:7b"),
                 max_tokens=int(os.getenv("MAX_TOKENS", "50")),
                 timeout=int(os.getenv("API_TIMEOUT", "30")),
                 max_retries=int(os.getenv("MAX_RETRIES", "3"))
