@@ -136,7 +136,7 @@ For example:
 Screenshot 2025-01-15 at 14.30.22 - Code editor Python file.png
 ```
 
-A session log is written to `~/Desktop/screenshot_rename_log.txt` (or the configured `DESKTOP_PATH`). OpenAI mode shows estimated/actual cloud API cost based on the tool's pricing approximation. Ollama mode incurs no OpenAI API charge; model downloads, disk use, power use, and any remote Ollama-server costs remain your responsibility.
+A session log is written to `~/Desktop/screenshot_rename_log - <Mac name>.txt` (or the configured `DESKTOP_PATH`), one file per Mac, using the computer name from System Settings → General → About. OpenAI mode shows estimated/actual cloud API cost based on the tool's pricing approximation. Ollama mode incurs no OpenAI API charge; model downloads, disk use, power use, and any remote Ollama-server costs remain your responsibility.
 
 ## Automation setup
 
@@ -173,7 +173,7 @@ Then set the same value in that Mac's `.env`:
 SCREENSHOT_PREFIX="Work Screenshot"
 ```
 
-When `SCREENSHOT_PREFIX` is set, only files named `<prefix> <date> at <time>.png` (or with a ` (N)` suffix) are renamed; default `Screenshot`/`Screen Shot` files are left alone, so neither Mac claims them. Renamed files keep their prefix. Don't disable the timestamp (`defaults write com.apple.screencapture include-date`), because matching relies on it. Each session in `screenshot_rename_log.txt` records which Mac ran it.
+When `SCREENSHOT_PREFIX` is set, only files named `<prefix> <date> at <time>.png` (or with a ` (N)` suffix) are renamed; default `Screenshot`/`Screen Shot` files are left alone, so neither Mac claims them. Renamed files keep their prefix. Don't disable the timestamp (`defaults write com.apple.screencapture include-date`), because matching relies on it. Each Mac writes its own `screenshot_rename_log - <Mac name>.txt`, so the log files never conflict.
 
 ## Troubleshooting
 
@@ -214,7 +214,7 @@ The default scan location is `~/Desktop`, and filenames must follow a supported 
 
 ### Permission denied or renames fail
 
-Check that the configured folder is writable and that the screenshot is not open or locked by another app. Review `screenshot_rename_log.txt` for the full error.
+Check that the configured folder is writable and that the screenshot is not open or locked by another app. Review `screenshot_rename_log - <Mac name>.txt` for the full error.
 
 ## Tests
 

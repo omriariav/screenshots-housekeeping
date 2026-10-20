@@ -1,8 +1,6 @@
 """Logging and reporting functionality for screenshot renaming operations."""
 
 import datetime
-import platform
-import subprocess
 from pathlib import Path
 from typing import List, Dict, Any
 from dataclasses import dataclass, field
@@ -10,19 +8,7 @@ from dataclasses import dataclass, field
 from file_manager import RenameResult
 from vision_analyzer import AnalysisResult
 from cost_calculator import CostEstimate, ActualCosts
-
-def get_machine_name() -> str:
-    """Return the macOS computer name, falling back to the network hostname."""
-    try:
-        name = subprocess.run(
-            ["scutil", "--get", "ComputerName"],
-            capture_output=True, text=True, timeout=5, check=True,
-        ).stdout.strip()
-        if name:
-            return name
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return platform.node() or "unknown"
+from config import get_machine_name
 
 @dataclass
 class ProcessingSummary:

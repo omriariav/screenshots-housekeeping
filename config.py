@@ -1,6 +1,8 @@
 """Configuration management for the Screenshot Renaming Script."""
 
 import os
+import platform
+import subprocess
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
@@ -8,6 +10,19 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+def get_machine_name() -> str:
+    """Return the macOS computer name, falling back to the network hostname."""
+    try:
+        name = subprocess.run(
+            ["scutil", "--get", "ComputerName"],
+            capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+        if name:
+            return name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return platform.node() or "unknown"
 
 @dataclass
 class APIConfig:
@@ -40,7 +55,10 @@ class ConfigManager:
             self.desktop_path = Path(desktop_path_env)
         else:
             self.desktop_path = Path.home() / "Desktop"
-        self.log_file_path = self.desktop_path / "screenshot_rename_log.txt"
+        # One log per Mac: a Desktop shared via iCloud would otherwise get
+        # conflicting writes to a single log file from several machines.
+        machine = get_machine_name().replace("/", "-").replace(":", "-")
+        self.log_file_path = self.desktop_path / f"screenshot_rename_log - {machine}.txt"
         
     def get_config(self) -> AppConfig:
         """Get complete application configuration."""
