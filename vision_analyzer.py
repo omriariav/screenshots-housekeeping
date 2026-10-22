@@ -12,6 +12,17 @@ import io
 from config import APIConfig
 from cost_calculator import CostCalculator
 
+# Examples of good names for the prompt (filtered by the word limit).
+GOOD_EXAMPLES = (
+    "Slack API token scopes",
+    "Snowflake role selection",
+    "GitHub PR review comments",
+    "Gmail flight booking confirmation",
+)
+
+# Quotes and punctuation models put around a title.
+TRIM_CHARS = " \t\n\"'`.,;:!"
+
 @dataclass
 class AnalysisResult:
     """Result of image analysis."""
@@ -24,9 +35,11 @@ class AnalysisResult:
 class VisionAnalyzer:
     """Handles LLM-based image analysis for screenshot descriptions."""
     
-    def __init__(self, api_config: APIConfig, cost_calculator: CostCalculator):
+    def __init__(self, api_config: APIConfig, cost_calculator: CostCalculator,
+                 description_length: int = 5):
         self.api_config = api_config
         self.cost_calculator = cost_calculator
+        self.description_length = max(2, description_length)
         self.session = requests.Session()
         self.session.headers.update({
             "Content-Type": "application/json"
@@ -134,15 +147,34 @@ class VisionAnalyzer:
             print(f"Error preparing image {image_path}: {e}")
             return None
     
+    def _build_prompt(self) -> str:
+        """Build the naming prompt. The result becomes part of a filename."""
+        n = self.description_length
+        # Show only examples that fit the limit, so they don't contradict it.
+        good = [e for e in GOOD_EXAMPLES if len(e.split()) <= n]
+        examples = "".join(f"Good: {e}\n" for e in good)
+        examples += "Bad: Web browser article reading\nBad: Settings screen preferences"
+        return (
+            f"Write a short filename-style title for this screenshot, at most {n} words.\n"
+            "\n"
+            "1. If the name or logo of the app, website, or product is visible, "
+            "start with it, for example Slack, Gmail, GitHub, Snowflake. "
+            "If it is not visible, leave it out. Never guess an app name.\n"
+            "2. Then name the specific subject: the page or document title, the "
+            "setting, the error, the channel, the topic. Prefer words you can read "
+            "on the screen over general categories.\n"
+            "\n"
+            "Do not use the words screenshot, screen, image, interface, window, or view.\n"
+            "Write separate plain words, not code, file names, or joined-up identifiers. "
+            "Brand names keep their usual spelling.\n"
+            "Reply with the title only: no quotes, no punctuation, no explanation.\n"
+            "\n"
+            + examples
+        )
+
     def _make_api_request(self, image_data: str) -> Optional[dict]:
         """Make a provider-specific request to analyze the image."""
-        prompt = (
-            "Analyze this screenshot and provide a concise 4-5 word description "
-            "that captures the main content or purpose. Focus on what the user "
-            "was doing or viewing. Examples: 'Web browser article reading', "
-            "'Code editor Python file', 'Settings screen preferences', "
-            "'Email inbox messages'. Be specific but brief."
-        )
+        prompt = self._build_prompt()
         if self.api_config.provider == "ollama":
             payload = {
                 "model": self.api_config.model,
@@ -454,10 +486,16 @@ class VisionAnalyzer:
                 if description.lower().startswith(prefix.lower()):
                     description = description[len(prefix):].strip()
             
-            # Ensure it's not too long
+            # Models often wrap the title in quotes or end it with a period.
+            # Strip both together so "Title'." doesn't leave a stray quote.
+            description = description.strip(TRIM_CHARS)
+
+            # Ensure it's not too long. Allow one word of slack (as before) so a
+            # slight overshoot isn't cut mid-phrase.
+            n = self.description_length
             words = description.split()
-            if len(words) > 6:
-                description = ' '.join(words[:5])
+            if len(words) > n + 1:
+                description = ' '.join(words[:n]).strip(TRIM_CHARS)
             
             # Final validation - ensure we have a meaningful description
             if len(description.strip()) < 2:

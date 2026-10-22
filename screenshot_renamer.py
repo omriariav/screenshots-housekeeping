@@ -39,7 +39,9 @@ class ScreenshotRenamer:
             self.file_manager = FileManager(self.config.desktop_path, self.config.screenshot_prefix)
             provider = getattr(self.config.api_config, "provider", "openai")
             self.cost_calculator = CostCalculator(provider)
-            self.vision_analyzer = VisionAnalyzer(self.config.api_config, self.cost_calculator)
+            self.vision_analyzer = VisionAnalyzer(
+                self.config.api_config, self.cost_calculator, self.config.description_length
+            )
             self.logger = ActionLogger(self.config.log_file_path, provider, self.config.machine_name)
             
             is_local = self.cost_calculator.is_local
