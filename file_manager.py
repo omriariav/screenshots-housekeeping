@@ -169,8 +169,13 @@ class FileManager:
         # Replace multiple spaces with single space
         description = re.sub(r'\s+', ' ', description)
         
-        # Trim and capitalize first letter
-        description = description.strip().capitalize()
+        # Trim and capitalize the first letter only. str.capitalize() would
+        # lowercase the rest ("GitHub" -> "Github"); words with inner capitals
+        # like "iPhone" or "macOS" keep their spelling.
+        description = description.strip()
+        first_word = description.split(' ', 1)[0]
+        if first_word[1:] == first_word[1:].lower():
+            description = description[:1].title() + description[1:]
         
         # Limit length to prevent overly long filenames
         max_length = 50

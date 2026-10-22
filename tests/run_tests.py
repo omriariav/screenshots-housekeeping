@@ -39,6 +39,7 @@ def main():
         "test_provider_cost_tracking.py",
         "test_ollama_support.py",
         "test_vision_prompt.py",
+        "test_filename_casing.py",
         "test_automator_runner.py",
         "test_screenshot_prefix.py",
         "test_logger_machine_name.py"

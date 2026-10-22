@@ -9,6 +9,9 @@ import requests
 from pathlib import Path
 import json
 import base64
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import APIConfig
 from cost_calculator import CostCalculator
