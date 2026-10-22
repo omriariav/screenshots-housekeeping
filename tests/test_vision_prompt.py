@@ -65,6 +65,54 @@ class TestReplyCleanup(unittest.TestCase):
     def test_punctuation_only_reply_falls_back(self):
         self.assertEqual(make_analyzer()._parse_description(reply("'.")), "Screenshot content")
 
+    def test_one_word_over_limit_is_kept(self):
+        # Same slack as before the prompt change: 6 words pass at the default of 5.
+        self.assertEqual(make_analyzer(5)._parse_description(reply("one two three four five six")),
+                         "one two three four five six")
+
+    def test_truncation_drops_trailing_punctuation(self):
+        self.assertEqual(make_analyzer(2)._parse_description(reply("Slack, GitHub, and Jira, Linear")),
+                         "Slack, GitHub")
+
+    def test_prefix_removed_before_quotes_and_punctuation(self):
+        analyzer = make_analyzer()
+        self.assertEqual(analyzer._parse_description(reply('Screenshot of "Snowflake role selection".')),
+                         "Snowflake role selection")
+        self.assertEqual(analyzer._parse_description(reply("This image shows: Zoom yoga class")),
+                         "Zoom yoga class")
+
+    def test_refusals_still_detected(self):
+        analyzer = make_analyzer()
+        self.assertIsNone(analyzer._parse_description(reply("I'm sorry, I can't help with that.")))
+        self.assertIsNone(analyzer._parse_description(reply('"I cannot analyze this image."')))
+
+
+class TestLimits(unittest.TestCase):
+    def test_limit_below_two_is_raised_to_two(self):
+        for value in (1, 0, -3):
+            self.assertEqual(make_analyzer(value).description_length, 2)
+
+    def test_examples_longer_than_limit_are_left_out(self):
+        prompt = make_analyzer(3)._build_prompt()
+        self.assertIn("Good: Snowflake role selection", prompt)
+        self.assertNotIn("Gmail flight booking confirmation", prompt)
+        self.assertIn("Gmail flight booking confirmation", make_analyzer(5)._build_prompt())
+
+
+class TestOpenAIPayload(unittest.TestCase):
+    def test_openai_request_sends_same_prompt_as_text_part(self):
+        config = APIConfig(provider="openai", api_key="test-key",
+                           base_url="https://api.openai.com/v1", model="gpt-4o", max_retries=0)
+        analyzer = VisionAnalyzer(config, CostCalculator(), 4)
+        response = Mock()
+        response.json.return_value = {"choices": [{"message": {"content": "x"}}]}
+        with patch.object(analyzer.session, "post", return_value=response) as post:
+            analyzer._make_api_request("img")
+        content = post.call_args.kwargs["json"]["messages"][0]["content"]
+        self.assertEqual(content[0], {"type": "text", "text": analyzer._build_prompt()})
+        self.assertIn("at most 4 words", content[0]["text"])
+        self.assertEqual(content[1]["image_url"]["url"], "data:image/jpeg;base64,img")
+
 
 if __name__ == "__main__":
     unittest.main()
