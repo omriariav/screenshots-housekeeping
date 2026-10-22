@@ -37,6 +37,16 @@ class TestFilenameCasing(unittest.TestCase):
     def test_still_removes_invalid_characters_and_extra_spaces(self):
         self.assertEqual(self.clean('  ApiError:  "TrustScore" too low.  '), "ApiError TrustScore too low")
 
+    def test_all_caps_is_kept(self):
+        # Trade-off of keeping acronyms like API and PR intact.
+        self.assertEqual(self.clean("SLACK API"), "SLACK API")
+
+    def test_edge_inputs(self):
+        self.assertEqual(self.clean("a"), "A")
+        self.assertEqual(self.clean("2024 report"), "2024 report")
+        self.assertEqual(self.clean("שלום עולם"), "שלום עולם")
+        self.assertEqual(self.clean("ß test"), "Ss test")
+
     def test_empty_description_stays_empty(self):
         self.assertEqual(self.clean("   "), "")
 

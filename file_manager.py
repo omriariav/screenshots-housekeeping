@@ -175,7 +175,7 @@ class FileManager:
         description = description.strip()
         first_word = description.split(' ', 1)[0]
         if first_word[1:] == first_word[1:].lower():
-            description = description[:1].upper() + description[1:]
+            description = description[:1].title() + description[1:]
         
         # Limit length to prevent overly long filenames
         max_length = 50
